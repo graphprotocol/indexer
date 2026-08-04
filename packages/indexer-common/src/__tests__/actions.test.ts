@@ -48,25 +48,40 @@ describe('Action Validation', () => {
       expect(isValidActionInput(missingAllocationID)).toBe(false)
     })
 
-    test('validates REALLOCATE action requires deploymentID, allocationID, and amount', () => {
-      const validReallocate: ActionInput = {
+    test('validates UNALLOCATE action with poi requires publicPOI and poiBlockNumber', () => {
+      const completePOI: ActionInput = {
         ...baseAction,
-        type: ActionType.REALLOCATE,
+        type: ActionType.UNALLOCATE,
         deploymentID: 'Qmtest',
         allocationID: '0x1234567890123456789012345678901234567890',
-        amount: '20000',
+        poi: '0x' + 'aa'.repeat(32),
+        publicPOI: '0x' + 'bb'.repeat(32),
+        poiBlockNumber: 1234,
       } as ActionInput
 
-      expect(isValidActionInput(validReallocate)).toBe(true)
+      expect(isValidActionInput(completePOI)).toBe(true)
 
-      const missingAmount: ActionInput = {
+      const missingPublicPOI: ActionInput = {
         ...baseAction,
-        type: ActionType.REALLOCATE,
+        type: ActionType.UNALLOCATE,
         deploymentID: 'Qmtest',
         allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'aa'.repeat(32),
+        poiBlockNumber: 1234,
       } as ActionInput
 
-      expect(isValidActionInput(missingAmount)).toBe(false)
+      expect(isValidActionInput(missingPublicPOI)).toBe(false)
+
+      const missingPoiBlockNumber: ActionInput = {
+        ...baseAction,
+        type: ActionType.UNALLOCATE,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'aa'.repeat(32),
+        publicPOI: '0x' + 'bb'.repeat(32),
+      } as ActionInput
+
+      expect(isValidActionInput(missingPoiBlockNumber)).toBe(false)
     })
 
     test('validates RESIZE action requires deploymentID, allocationID, and amount', () => {
@@ -146,7 +161,6 @@ describe('Action Validation', () => {
         deploymentID: 'Qmtest',
         allocationID: '0x1234567890123456789012345678901234567890',
         poi: '0x' + 'ab'.repeat(32),
-        isLegacy: false,
       }
 
       expect(isValidActionInput(withNonZeroPoiButMissingPublicPOI)).toBe(false)
@@ -158,7 +172,6 @@ describe('Action Validation', () => {
         deploymentID: 'Qmtest',
         allocationID: '0x1234567890123456789012345678901234567890',
         poi: '0x' + '00'.repeat(32),
-        isLegacy: false,
       }
 
       expect(isValidActionInput(withZeroPoi)).toBe(true)
@@ -172,7 +185,6 @@ describe('Action Validation', () => {
         poi: '0x' + 'ab'.repeat(32),
         publicPOI: '0x' + 'cd'.repeat(32),
         poiBlockNumber: 12345,
-        isLegacy: false,
       }
 
       expect(isValidActionInput(withAllPoiFields)).toBe(true)

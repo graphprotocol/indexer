@@ -2,7 +2,6 @@
 // entry point is the compiled ./dist bundle. Going through the package would test
 // whatever was last built instead of the code in this working tree.
 import { defineQueryFeeModels, QueryFeeModels } from '../../query-fees/models'
-import { TapCollector } from '../tap-collector'
 import { GraphTallyCollector } from '../graph-tally-collector'
 import {
   connectDatabase,
@@ -28,13 +27,6 @@ const SERVICE_PROVIDER = toAddress('0000000000000000000000000000000000000002')
 
 // Values are deliberately inserted out of order so a passing assertion cannot be
 // explained by Postgres happening to return rows in insertion order.
-const V1_RAVS = [
-  { allocationId: toAddress('1111111111111111111111111111111111111111'), value: 5n },
-  { allocationId: toAddress('2222222222222222222222222222222222222222'), value: 100n },
-  { allocationId: toAddress('3333333333333333333333333333333333333333'), value: 1n },
-  { allocationId: toAddress('4444444444444444444444444444444444444444'), value: 50n },
-]
-
 const V2_RAVS = [
   { collectionId: `0x${'a'.repeat(64)}`, value: 7n },
   { collectionId: `0x${'b'.repeat(64)}`, value: 900n },
@@ -65,33 +57,7 @@ beforeEach(async () => {
 })
 
 describe('pendingRAVs ordering', () => {
-  test('TAPv1 returns pending RAVs ordered by value, highest first', async () => {
-    // Arrange
-    for (const { allocationId, value } of V1_RAVS) {
-      await queryFeeModels.receiptAggregateVouchers.create({
-        allocationId,
-        senderAddress: PAYER,
-        signature: SIGNATURE,
-        timestampNs: 1n,
-        valueAggregate: value,
-        last: true,
-        final: false,
-        redeemedAt: null,
-      })
-    }
-    const collector: TapCollector = Object.assign(Object.create(TapCollector.prototype), {
-      logger,
-      models: queryFeeModels,
-    })
-
-    // Act
-    const ravs = await collector['pendingRAVs']()
-
-    // Assert
-    expect(ravs.map((rav) => rav.valueAggregate)).toEqual([100n, 50n, 5n, 1n])
-  })
-
-  test('TAPv2 returns pending RAVs ordered by value, highest first', async () => {
+  test('returns pending RAVs ordered by value, highest first', async () => {
     // Arrange
     for (const { collectionId, value } of V2_RAVS) {
       await queryFeeModels.receiptAggregateVouchersV2.create({
@@ -120,46 +86,9 @@ describe('pendingRAVs ordering', () => {
     expect(ravs.map((rav) => rav.valueAggregate)).toEqual([900n, 42n, 7n, 3n])
   })
 
-  test('TAPv1 ordering surfaces high value RAVs from beyond a full batch', async () => {
+  test('ordering surfaces high value RAVs from beyond a full batch', async () => {
     // Arrange: 1,000 dust RAVs that would fill the batch on their own, plus one
     // valuable RAV inserted last so insertion order alone would exclude it.
-    await queryFeeModels.receiptAggregateVouchers.bulkCreate(
-      Array.from({ length: 1000 }, (_, i) => ({
-        allocationId: toAddress(i.toString(16).padStart(40, '0')),
-        senderAddress: PAYER,
-        signature: SIGNATURE,
-        timestampNs: 1n,
-        valueAggregate: 1n,
-        last: true,
-        final: false,
-        redeemedAt: null,
-      })),
-    )
-    await queryFeeModels.receiptAggregateVouchers.create({
-      allocationId: toAddress('ffffffffffffffffffffffffffffffffffffffff'),
-      senderAddress: PAYER,
-      signature: SIGNATURE,
-      timestampNs: 1n,
-      valueAggregate: 10n ** 21n, // 1,000 GRT
-      last: true,
-      final: false,
-      redeemedAt: null,
-    })
-    const collector: TapCollector = Object.assign(Object.create(TapCollector.prototype), {
-      logger,
-      models: queryFeeModels,
-    })
-
-    // Act
-    const ravs = await collector['pendingRAVs']()
-
-    // Assert
-    expect(ravs).toHaveLength(1000)
-    expect(ravs[0].valueAggregate).toEqual(10n ** 21n)
-  })
-
-  test('TAPv2 ordering surfaces high value RAVs from beyond a full batch', async () => {
-    // Arrange
     await queryFeeModels.receiptAggregateVouchersV2.bulkCreate(
       Array.from({ length: 1000 }, (_, i) => ({
         collectionId: `0x${i.toString(16).padStart(64, '0')}`,
@@ -239,48 +168,58 @@ describe('pendingRAVs ordering', () => {
     expect(response._meta.block.hash).toEqual('pinned-block')
   })
 
-  test('pendingRAVs excludes final and non-last RAVs regardless of value', async () => {
-    // Arrange
-    await queryFeeModels.receiptAggregateVouchers.create({
-      allocationId: V1_RAVS[0].allocationId,
-      senderAddress: PAYER,
+  test('pendingRAVs excludes final RAVs but keeps non-last ones', async () => {
+    // Arrange: finalized RAVs are done and must never be reconciled again, however
+    // valuable. Non-last RAVs stay in scope because collection on long lived
+    // allocations is continuous and every open RAV is a candidate.
+    await queryFeeModels.receiptAggregateVouchersV2.create({
+      collectionId: V2_RAVS[0].collectionId,
+      payer: PAYER,
+      dataService: DATA_SERVICE,
+      serviceProvider: SERVICE_PROVIDER,
       signature: SIGNATURE,
+      metadata: '0x',
       timestampNs: 1n,
       valueAggregate: 10n ** 21n,
       last: true,
       final: true, // already finalized
       redeemedAt: null,
     })
-    await queryFeeModels.receiptAggregateVouchers.create({
-      allocationId: V1_RAVS[1].allocationId,
-      senderAddress: PAYER,
+    await queryFeeModels.receiptAggregateVouchersV2.create({
+      collectionId: V2_RAVS[1].collectionId,
+      payer: PAYER,
+      dataService: DATA_SERVICE,
+      serviceProvider: SERVICE_PROVIDER,
       signature: SIGNATURE,
+      metadata: '0x',
       timestampNs: 1n,
-      valueAggregate: 10n ** 21n,
-      last: false, // superseded by a newer RAV
+      valueAggregate: 42n,
+      last: false, // superseded, but still open
       final: false,
       redeemedAt: null,
     })
-    await queryFeeModels.receiptAggregateVouchers.create({
-      allocationId: V1_RAVS[2].allocationId,
-      senderAddress: PAYER,
+    await queryFeeModels.receiptAggregateVouchersV2.create({
+      collectionId: V2_RAVS[2].collectionId,
+      payer: PAYER,
+      dataService: DATA_SERVICE,
+      serviceProvider: SERVICE_PROVIDER,
       signature: SIGNATURE,
+      metadata: '0x',
       timestampNs: 1n,
       valueAggregate: 5n,
       last: true,
       final: false,
       redeemedAt: null,
     })
-    const collector: TapCollector = Object.assign(Object.create(TapCollector.prototype), {
-      logger,
-      models: queryFeeModels,
-    })
+    const collector: GraphTallyCollector = Object.assign(
+      Object.create(GraphTallyCollector.prototype),
+      { logger, models: queryFeeModels },
+    )
 
     // Act
     const ravs = await collector['pendingRAVs']()
 
     // Assert
-    expect(ravs).toHaveLength(1)
-    expect(ravs[0].valueAggregate).toEqual(5n)
+    expect(ravs.map((rav) => rav.valueAggregate)).toEqual([42n, 5n])
   })
 })

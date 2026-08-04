@@ -20,6 +20,7 @@ import {
   Network,
   RulesManager,
 } from '@graphprotocol/indexer-common'
+import { PendingRcaProposal } from './models/pending-rca-proposal'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -44,6 +45,7 @@ const SCHEMA_SDL = gql`
     never
     always
     offchain
+    dips
   }
 
   enum IdentifierType {
@@ -98,14 +100,6 @@ const SCHEMA_SDL = gql`
     protocolNetwork: String!
   }
 
-  type ReallocateAllocationResult {
-    closedAllocation: String!
-    indexingRewardsCollected: String!
-    createdAllocation: String!
-    createdAllocationStake: String!
-    protocolNetwork: String!
-  }
-
   type PresentPOIResult {
     actionID: Int!
     type: String!
@@ -138,7 +132,6 @@ const SCHEMA_SDL = gql`
   enum ActionType {
     allocate
     unallocate
-    reallocate
     presentPOI
     resize
   }
@@ -162,7 +155,6 @@ const SCHEMA_SDL = gql`
     createdAt: BigInt!
     updatedAt: BigInt
     protocolNetwork: String!
-    isLegacy: Boolean!
   }
 
   input ActionInput {
@@ -179,7 +171,6 @@ const SCHEMA_SDL = gql`
     reason: String!
     priority: Int!
     protocolNetwork: String!
-    isLegacy: Boolean!
   }
 
   input ActionUpdateInput {
@@ -233,7 +224,6 @@ const SCHEMA_SDL = gql`
     failureReason: String
     priority: Int
     protocolNetwork: String!
-    isLegacy: Boolean!
   }
 
   input ActionFilter {
@@ -338,7 +328,6 @@ const SCHEMA_SDL = gql`
     address: String
     registered: Boolean!
     location: GeoLocation
-    isLegacy: Boolean!
   }
 
   type IndexingError {
@@ -389,7 +378,6 @@ const SCHEMA_SDL = gql`
     healthy: Boolean!
     protocolNetwork: String!
     tests: [IndexerEndpointTest!]!
-    isLegacy: Boolean!
   }
 
   type IndexerEndpoints {
@@ -521,15 +509,6 @@ const SCHEMA_SDL = gql`
       force: Boolean
       protocolNetwork: String!
     ): CloseAllocationResult!
-    reallocateAllocation(
-      allocation: String!
-      poi: String
-      blockNumber: Int
-      publicPOI: String
-      amount: String!
-      force: Boolean
-      protocolNetwork: String!
-    ): ReallocateAllocationResult!
     presentPOI(
       allocation: String!
       poi: String
@@ -572,9 +551,12 @@ export interface IndexerManagementClientOptions {
   graphNode: GraphNode
   multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
+  actionManager?: ActionManager | undefined
+  pendingRcaModel: typeof PendingRcaProposal
 }
 
 export class IndexerManagementClient extends Client {
+  declare actionManager: ActionManager | undefined
   private logger?: Logger
   private models: IndexerManagementModels
 
@@ -583,6 +565,7 @@ export class IndexerManagementClient extends Client {
 
     this.logger = options.logger
     this.models = options.models
+    this.actionManager = options.actionManager
   }
 }
 
@@ -591,7 +574,7 @@ export class IndexerManagementClient extends Client {
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, graphNode, logger, defaults, multiNetworks } = options
+  const { models, graphNode, logger, defaults, multiNetworks, pendingRcaModel } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -604,7 +587,13 @@ export const createIndexerManagementClient = async (
   }
 
   const actionManager = multiNetworks
-    ? await ActionManager.create(multiNetworks, logger, models, graphNode)
+    ? await ActionManager.create(
+        multiNetworks,
+        logger,
+        models,
+        graphNode,
+        pendingRcaModel,
+      )
     : undefined
 
   const rulesManager = multiNetworks
@@ -627,5 +616,8 @@ export const createIndexerManagementClient = async (
     context,
   })
 
-  return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options)
+  return new IndexerManagementClient(
+    { url: 'no-op', exchanges: [exchange] },
+    { ...options, actionManager },
+  )
 }

@@ -15,6 +15,7 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   defineQueryFeeModels,
   GraphNode,
   indexerError,
@@ -32,7 +33,6 @@ import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { displayZodParsingError } from '@graphprotocol/indexer-common'
-import { readFileSync } from 'fs'
 import { AgentConfigs } from '../types'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
@@ -112,27 +112,6 @@ export const start = {
         required: true,
         group: 'Ethereum',
       })
-      .option('legacy-mnemonics', {
-        description:
-          'Legacy operator mnemonics for collecting TAPv1 RAVs from previous operators. ' +
-          'Via CLI: use multiple --legacy-mnemonics flags. ' +
-          'Via env var: separate mnemonics with | (pipe character).',
-        type: 'string',
-        array: true,
-        default: [],
-        group: 'Ethereum',
-        coerce: (value: string | string[]): string[] => {
-          if (typeof value === 'string') {
-            // Environment variable: split by pipe delimiter
-            return value
-              .split('|')
-              .map(m => m.trim())
-              .filter(m => m.length > 0)
-          }
-          // CLI: already an array
-          return value.filter(m => m.length > 0)
-        },
-      })
       .option('indexer-address', {
         description: 'Ethereum address of the indexer',
         type: 'string',
@@ -185,17 +164,18 @@ export const start = {
         type: 'string',
         group: 'Network Subgraph',
       })
-      .option('tap-subgraph-deployment', {
-        description: 'TAP subgraph deployment (for local hosting)',
+      .option('indexing-payments-subgraph-deployment', {
+        description:
+          'Indexing payments subgraph deployment (for local hosting)',
         array: false,
         type: 'string',
-        group: 'TAP Subgraph',
+        group: 'Indexing Fees ("DIPs")',
       })
-      .option('tap-subgraph-endpoint', {
-        description: 'Endpoint to query the tap subgraph from',
+      .option('indexing-payments-subgraph-endpoint', {
+        description: 'Endpoint to query the indexing payments subgraph from',
         array: false,
         type: 'string',
-        group: 'TAP Subgraph',
+        group: 'Indexing Fees ("DIPs")',
       })
       .option('allocate-on-network-subgraph', {
         description: 'Whether to allocate to the network subgraph',
@@ -287,6 +267,19 @@ export const start = {
         default: 50,
         group: 'Query Fees',
       })
+      .option('rav-collection-interval', {
+        description:
+          'Minimum time in seconds between periodic RAV collections per active allocation',
+        type: 'number',
+        default: 14400,
+        group: 'Query Fees',
+      })
+      .option('rav-check-interval', {
+        description: 'How often the RAV processing loop runs, in seconds',
+        type: 'number',
+        default: 900,
+        group: 'Query Fees',
+      })
       .option('horizon-address-book', {
         description: 'Graph Horizon contracts address book file path',
         type: 'string',
@@ -294,11 +287,6 @@ export const start = {
       })
       .option('subgraph-service-address-book', {
         description: 'Subgraph Service contracts address book file path',
-        type: 'string',
-        required: false,
-      })
-      .option('tap-address-book', {
-        description: 'TAP contracts address book file path',
         type: 'string',
         required: false,
       })
@@ -361,6 +349,45 @@ export const start = {
         required: false,
         group: 'Indexer Infrastructure',
       })
+      .option('enable-dips', {
+        description: 'Whether to enable Indexing Fees (DIPs)',
+        type: 'boolean',
+        default: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-allocation-amount', {
+        description: 'Amount of GRT to allocate for DIPs',
+        type: 'number',
+        default: 0,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-collection-target', {
+        description:
+          'Target collection point within the agreement window as a percentage (1-90). ' +
+          'Lower values collect sooner (safer), higher values collect later (fewer txs).',
+        type: 'number',
+        default: 50,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-collection-slippage', {
+        description:
+          'Maximum tolerated slippage between expected and collected tokens, as a percentage of expected (0-100). ' +
+          "Slippage occurs when payer-side RCA caps narrow the data-service price; this is the indexer's stop-loss.",
+        type: 'number',
+        default: 1,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-acceptance-interval', {
+        description:
+          'How often the DIPs proposal-acceptance loop runs, in seconds',
+        type: 'number',
+        default: 5,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -387,6 +414,13 @@ export const start = {
           argv['rebate-claim-max-batch-size'] <= 0
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
+        }
+        if (
+          argv['enable-dips'] &&
+          !argv['indexing-payments-subgraph-endpoint'] &&
+          !argv['indexing-payments-subgraph-deployment']
+        ) {
+          return 'At least one of --indexing-payments-subgraph-endpoint and --indexing-payments-subgraph-deployment must be provided when --enable-dips is true.'
         }
         return true
       })
@@ -427,7 +461,14 @@ export async function createNetworkSpecification(
     register: argv.register,
     maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
-    legacyMnemonics: argv.legacyMnemonics,
+    enableDips: argv.enableDips,
+    dipsAllocationAmount: argv.dipsAllocationAmount,
+    ravCollectionInterval: argv.ravCollectionInterval,
+    ravCheckInterval: argv.ravCheckInterval,
+    dipsEpochsMargin: argv.dipsEpochsMargin,
+    dipsCollectionTarget: argv.dipsCollectionTarget,
+    dipsCollectionSlippage: argv.dipsCollectionSlippage,
+    dipsAcceptanceInterval: argv.dipsAcceptanceInterval,
   }
 
   const transactionMonitoring = {
@@ -450,13 +491,10 @@ export async function createNetworkSpecification(
       deployment: argv.epochSubgraphDeployment,
       url: argv.epochSubgraphEndpoint,
     },
-    tapSubgraph:
-      argv.tapSubgraphDeployment || argv.tapSubgraphEndpoint
-        ? {
-            deployment: argv.tapSubgraphDeployment,
-            url: argv.tapSubgraphEndpoint,
-          }
-        : undefined,
+    indexingPaymentsSubgraph: {
+      deployment: argv.indexingPaymentsSubgraphDeployment,
+      url: argv.indexingPaymentsSubgraphEndpoint,
+    },
   }
 
   const networkProvider = {
@@ -501,8 +539,6 @@ export async function createNetworkSpecification(
     }
   }
 
-  const tapAddressBook = loadFile(argv.tapAddressBook)
-
   try {
     const networkSpecification = spec.NetworkSpecification.parse({
       networkIdentifier,
@@ -513,7 +549,6 @@ export async function createNetworkSpecification(
       networkProvider,
       horizonAddressBook: argv.horizonAddressBook,
       subgraphServiceAddressBook: argv.subgraphServiceAddressBook,
-      tapAddressBook: tapAddressBook,
     })
     logger.trace('Network specification', {
       networkSpecification,
@@ -523,11 +558,6 @@ export async function createNetworkSpecification(
     displayZodParsingError(parsingError)
     process.exit(1)
   }
-}
-
-function loadFile(path: string | undefined): unknown | undefined {
-  const obj = path ? JSON.parse(readFileSync(path).toString()) : undefined
-  return obj
 }
 
 export async function run(
@@ -646,6 +676,9 @@ export async function run(
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
 
+  // Define after sync so Sequelize won't try to create/alter this indexer-rs-owned table
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
+
   // --------------------------------------------------------------------------------
   // * Networks
   // --------------------------------------------------------------------------------
@@ -656,7 +689,14 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
+      Network.create(
+        logger,
+        spec,
+        managementModels,
+        queryFeeModels,
+        graphNode,
+        metrics,
+      ),
   )
 
   // --------------------------------------------------------------------------------
@@ -679,6 +719,7 @@ export async function run(
       },
     },
     multiNetworks,
+    pendingRcaModel,
   })
 
   // --------------------------------------------------------------------------------
@@ -716,6 +757,13 @@ export async function run(
     async (spec: NetworkSpecification) =>
       new Operator(logger, indexerManagementClient, spec),
   )
+
+  // Start the DIPs acceptance loop only on the long-running agent. The CLI and
+  // jest setups go through the same management-client path but don't want
+  // this timer running for their short-lived processes.
+  for (const operator of operators) {
+    operator.dipsManager?.startProposalAcceptanceLoop()
+  }
 
   // --------------------------------------------------------------------------------
   // * The Agent itself

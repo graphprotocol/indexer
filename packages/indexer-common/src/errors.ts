@@ -194,7 +194,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE087: 'Failed to resize allocation',
   IE088: 'Failed to present POI',
   IE089: 'Failed to collect indexing rewards',
-  IE090: 'Failed to reallocate: indexer is overallocated',
+  IE090: 'Failed to collect indexing rewards: indexer not eligible for rewards',
 }
 
 export type IndexerErrorCause = unknown

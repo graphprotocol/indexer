@@ -9,12 +9,14 @@ import {
 } from '@graphprotocol/common-ts'
 import {
   ActionStatus,
+  ActivationCriteria,
   Allocation,
   AllocationManagementMode,
   allocationRewardsPool,
   AllocationStatus,
   indexerError,
   IndexerErrorCode,
+  INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
   IndexerManagementClient,
   IndexingRuleAttributes,
@@ -34,7 +36,6 @@ import {
   DeploymentManagementMode,
   SubgraphStatus,
   sequentialTimerMap,
-  HorizonTransitionValue,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -43,17 +44,23 @@ import pFilter from 'p-filter'
 import zip from 'lodash.zip'
 import { AgentConfigs, NetworkAndOperator } from './types'
 
-type ActionReconciliationContext = [
-  AllocationDecision[],
-  number,
-  HorizonTransitionValue,
-]
+type ActionReconciliationContext = [AllocationDecision[], number, number]
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
   deployment: SubgraphDeploymentID,
 ): boolean =>
   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
+
+export function addIndexingPaymentsSubgraphToTarget(
+  enableDips: boolean,
+  deployment: SubgraphDeploymentID | undefined,
+  targetDeployments: SubgraphDeploymentID[],
+): void {
+  if (!enableDips || !deployment) return
+  if (deploymentInList(targetDeployments, deployment)) return
+  targetDeployments.push(deployment)
+}
 
 const deploymentRuleInList = (
   list: IndexingRuleAttributes[],
@@ -269,28 +276,40 @@ export class Agent {
         },
       )
 
-    const maxAllocationDuration: Eventual<
-      NetworkMapped<HorizonTransitionValue>
-    > = sequentialTimerMap(
-      { logger, milliseconds: requestIntervalLarge },
-      () =>
-        this.multiNetworks.map(({ network }) => {
-          logger.trace('Fetching max allocation duration', {
-            protocolNetwork: network.specification.networkIdentifier,
-          })
-          return network.networkMonitor.maxAllocationDuration()
-        }),
-      {
-        onError: error =>
-          logger.warn(`Failed to fetch max allocation duration`, { error }),
-      },
-    )
+    const maxAllocationDuration: Eventual<NetworkMapped<number>> =
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalLarge },
+        () =>
+          this.multiNetworks.map(({ network }) => {
+            logger.trace('Fetching max allocation duration', {
+              protocolNetwork: network.specification.networkIdentifier,
+            })
+            return network.networkMonitor.maxAllocationDuration()
+          }),
+        {
+          onError: error =>
+            logger.warn(`Failed to fetch max allocation duration`, { error }),
+        },
+      )
 
     const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
+            if (network.specification.indexerOptions.enableDips) {
+              const dipsManager = this.readyDipsManager(network, operator)
+              if (dipsManager) {
+                logger.debug('Ensuring indexing rules for DIPs', {
+                  protocolNetwork: network.specification.networkIdentifier,
+                })
+                await dipsManager.ensureAgreementRules()
+              }
+            } else {
+              logger.debug(
+                'DIPs is disabled, skipping indexing rule enforcement',
+              )
+            }
             logger.trace('Fetching indexing rules', {
               protocolNetwork: network.specification.networkIdentifier,
             })
@@ -324,12 +343,21 @@ export class Agent {
         },
       )
 
-    // Skip fetching active deployments if the deployment management mode is manual and POI tracking is disabled
+    // Skip fetching active deployments if the deployment management mode is manual, DIPs is disabled, and POI tracking is disabled
     const activeDeployments: Eventual<SubgraphDeploymentID[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
-          if (this.deploymentManagement === DeploymentManagementMode.AUTO) {
+          let dipsEnabled = false
+          await this.multiNetworks.map(async ({ network }) => {
+            if (network.specification.indexerOptions.enableDips) {
+              dipsEnabled = true
+            }
+          })
+          if (
+            this.deploymentManagement === DeploymentManagementMode.AUTO ||
+            dipsEnabled
+          ) {
             logger.debug('Fetching active deployments')
             const assignments =
               await this.graphNode.subgraphDeploymentsAssignments(
@@ -338,7 +366,7 @@ export class Agent {
             return assignments.map(assignment => assignment.id)
           } else {
             logger.info(
-              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and POI tracking is disabled",
+              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and DIPs is disabled",
             )
             return []
           }
@@ -351,37 +379,60 @@ export class Agent {
         },
       )
 
-    const networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
-      sequentialTimerMap(
-        { logger, milliseconds: requestIntervalSmall },
-        async () =>
-          await this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching network deployments', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.networkMonitor.subgraphDeployments()
-          }),
-        {
-          onError: error =>
-            logger.warn(
-              `Failed to obtain network deployments, trying again later`,
-              { error },
-            ),
-        },
-      )
+    const networkAndDipsDeployments: Eventual<
+      NetworkMapped<SubgraphDeployment[]>
+    > = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalSmall },
+      async () =>
+        await this.multiNetworks.map(async ({ network, operator }) => {
+          logger.trace('Fetching network deployments', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          const deployments = network.networkMonitor.subgraphDeployments()
+          const dipsManager = network.specification.indexerOptions.enableDips
+            ? this.readyDipsManager(network, operator)
+            : null
+          if (dipsManager) {
+            const resolvedDeployments = await deployments
+            const dipsDeployments = await Promise.all(
+              (await dipsManager.getActiveDipsDeployments()).map(deployment =>
+                network.networkMonitor.subgraphDeployment(deployment.ipfsHash),
+              ),
+            )
+            for (const deployment of dipsDeployments) {
+              if (
+                resolvedDeployments.find(
+                  d => d.id.bytes32 === deployment.id.bytes32,
+                ) == null
+              ) {
+                resolvedDeployments.push(deployment)
+              }
+            }
+            return resolvedDeployments
+          }
+          return deployments
+        }),
+      {
+        onError: error =>
+          logger.warn(
+            `Failed to obtain network deployments, trying again later`,
+            { error },
+          ),
+      },
+    )
 
     const networkDeploymentAllocationDecisions: Eventual<
       NetworkMapped<AllocationDecision[]>
     > = join({
-      networkDeployments,
+      networkAndDipsDeployments,
       indexingRules,
     }).tryMap(
-      async ({ indexingRules, networkDeployments }) => {
+      async ({ indexingRules, networkAndDipsDeployments }) => {
         return this.multiNetworks.mapNetworkMapped(
-          this.multiNetworks.zip(indexingRules, networkDeployments),
+          this.multiNetworks.zip(indexingRules, networkAndDipsDeployments),
           async (
             { network }: NetworkAndOperator,
-            [indexingRules, networkDeployments]: [
+            [indexingRules, networkAndDipsDeployments]: [
               IndexingRuleAttributes[],
               SubgraphDeployment[],
             ],
@@ -405,7 +456,11 @@ export class Agent {
             logger.trace('Evaluating which deployments are worth allocating to')
             return indexingRules.length === 0
               ? []
-              : evaluateDeployments(logger, networkDeployments, indexingRules)
+              : evaluateDeployments(
+                  logger,
+                  networkAndDipsDeployments,
+                  indexingRules,
+                )
           },
         )
       },
@@ -530,7 +585,6 @@ export class Agent {
       disputableAllocations,
     }).pipe(
       async ({
-        currentEpochNumber,
         maxAllocationDuration,
         activeDeployments,
         targetDeployments,
@@ -539,8 +593,22 @@ export class Agent {
         recentlyClosedAllocations,
         disputableAllocations,
       }) => {
+        // Read the epoch fresh once per pass instead of the separately-timed Eventual, which
+        // can lag the chain by an epoch and make a just-created allocation look stale.
+        const currentEpochNumberWithProvenance = await this.multiNetworks.map(
+          async ({ network }) =>
+            network.networkMonitor.currentEpochNumberWithProvenance(),
+        )
+        const currentEpochNumber = await this.multiNetworks.mapNetworkMapped(
+          currentEpochNumberWithProvenance,
+          async (
+            _: NetworkAndOperator,
+            provenance: { epoch: number; readAtBlock: number },
+          ) => provenance.epoch,
+        )
         logger.info(`Reconcile with the network`, {
           currentEpochNumber,
+          epochProvenance: currentEpochNumberWithProvenance,
         })
 
         try {
@@ -599,9 +667,35 @@ export class Agent {
             }
             break
           case DeploymentManagementMode.MANUAL:
-            this.logger.debug(
-              `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
-            )
+            await this.multiNetworks.map(async ({ network }) => {
+              if (network.specification.indexerOptions.enableDips) {
+                // Manual mode normally leaves deployments untouched, but reconcileDeployments
+                // keeps deployments with an active DIPS agreement out of the pause path, so
+                // still run it here; it resolves the active DIPS deployments itself.
+                this.logger.warn(
+                  `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
+                )
+                try {
+                  await this.reconcileDeployments(
+                    activeDeployments,
+                    [...activeDeployments],
+                    eligibleAllocations,
+                  )
+                } catch (err) {
+                  logger.warn(
+                    `Exited early while reconciling deployments. Skipped reconciling actions.`,
+                    {
+                      err: indexerError(IndexerErrorCode.IE005, err),
+                    },
+                  )
+                  return
+                }
+              } else {
+                this.logger.debug(
+                  `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
+                )
+              }
+            })
             break
           default:
             throw new Error(
@@ -622,6 +716,16 @@ export class Agent {
           })
           return
         }
+
+        await this.multiNetworks.map(async ({ network, operator }) => {
+          if (network.specification.indexerOptions.enableDips) {
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
+            }
+
+            await operator.dipsManager.collectAgreementPayments()
+          }
+        })
       },
     )
   }
@@ -773,6 +877,22 @@ export class Agent {
     })
   }
 
+  // The DipsManager is built lazily once the action manager registers its allocation
+  // manager, so it can briefly be absent at startup even with DIPS enabled. Return it when
+  // ready, otherwise null with a debug log so callers skip their DIPS step rather than crash.
+  private readyDipsManager(
+    network: Network,
+    operator: Operator,
+  ): Operator['dipsManager'] {
+    if (!operator.dipsManager) {
+      this.logger.debug(
+        'DIPS enabled but DipsManager not ready; skipping DIPS work this pass',
+        { protocolNetwork: network.specification.networkIdentifier },
+      )
+    }
+    return operator.dipsManager
+  }
+
   // This function assumes that allocations and deployments passed to it have already
   // been retrieved from multiple networks.
   async reconcileDeployments(
@@ -792,6 +912,36 @@ export class Agent {
         if (!deploymentInList(targetDeployments, networkDeploymentID)) {
           targetDeployments.push(networkDeploymentID)
           indexingNetworkSubgraph = true
+        }
+      }
+    })
+
+    // ----------------------------------------------------------------------------------------
+    // Ensure the indexing-payments subgraph is always indexed when DIPS is enabled
+    // ----------------------------------------------------------------------------------------
+    await this.multiNetworks.map(async ({ network }) => {
+      addIndexingPaymentsSubgraphToTarget(
+        network.specification.indexerOptions.enableDips,
+        network.indexingPaymentsSubgraph?.deployment?.id,
+        targetDeployments,
+      )
+    })
+
+    // Keep deployments with an active DIPS agreement indexed even when a lagging or removed
+    // DIPS rule has dropped them from the target set; otherwise the pause path below would
+    // stop indexing a deployment the agreement is still paying for.
+    await this.multiNetworks.map(async ({ network, operator }) => {
+      if (!network.specification.indexerOptions.enableDips) {
+        return
+      }
+      const dipsManager = this.readyDipsManager(network, operator)
+      if (!dipsManager) {
+        return
+      }
+      const dipsDeployments = await dipsManager.getActiveDipsDeployments()
+      for (const deployment of dipsDeployments) {
+        if (!deploymentInList(targetDeployments, deployment)) {
+          targetDeployments.push(deployment)
         }
       }
     })
@@ -853,7 +1003,7 @@ export class Agent {
         const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
         logger.info(`Index subgraph deployment`, {
-          name,
+          subgraphName: name,
           deployment: deployment.display,
         })
 
@@ -876,7 +1026,7 @@ export class Agent {
     activeAllocations: Allocation[],
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
-    maxAllocationDuration: HorizonTransitionValue,
+    maxAllocationDuration: number,
     network: Network,
   ): Promise<Allocation[]> {
     logger.debug('Identify expiring allocations', {
@@ -887,19 +1037,14 @@ export class Agent {
     })
     let expiredAllocations = activeAllocations.filter(
       (allocation: Allocation) => {
-        let desiredAllocationLifetime: number = 0
-        if (allocation.isLegacy) {
-          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
-            .rule?.allocationLifetime
-            ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
-            : Math.max(1, maxAllocationDuration.legacy - 1)
-        } else {
-          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
-            .rule?.allocationLifetime
-            ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
-            : maxAllocationDuration.horizon
-        }
-        return epoch >= allocation.createdAtEpoch + desiredAllocationLifetime
+        const desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
+          .rule?.allocationLifetime
+          ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
+          : maxAllocationDuration
+
+        const lastCollectedEpoch =
+          allocation.lastPresentedPoiEpoch ?? allocation.createdAtEpoch
+        return epoch >= lastCollectedEpoch + desiredAllocationLifetime
       },
     )
     logger.debug('Expired allocations found', {
@@ -914,17 +1059,9 @@ export class Agent {
       expiredAllocations,
       async (allocation: Allocation) => {
         try {
-          if (allocation.isLegacy) {
-            const onChainAllocation =
-              await network.contracts.LegacyStaking.getAllocation(allocation.id)
-            return onChainAllocation.closedAtEpoch == 0n
-          } else {
-            const onChainAllocation =
-              await network.contracts.SubgraphService.getAllocation(
-                allocation.id,
-              )
-            return onChainAllocation.closedAt == 0n
-          }
+          const onChainAllocation =
+            await network.contracts.SubgraphService.getAllocation(allocation.id)
+          return onChainAllocation.closedAt == 0n
         } catch (err) {
           this.logger.warn(
             `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
@@ -945,17 +1082,17 @@ export class Agent {
     deploymentAllocationDecision: AllocationDecision,
     activeAllocations: Allocation[],
     epoch: number,
-    maxAllocationDuration: HorizonTransitionValue,
+    maxAllocationDuration: number,
     network: Network,
     operator: Operator,
+    currentIndexingRules: IndexingRuleAttributes[],
+    forceAction: boolean = false,
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
       protocolNetwork: network.specification.networkIdentifier,
       epoch,
     })
-
-    const isHorizon = await network.isHorizon.value()
 
     // TODO: Can we replace `filter` for `find` here? Is there such a case when we
     // would have multiple allocations for the same subgraph?
@@ -966,12 +1103,44 @@ export class Agent {
     )
 
     switch (deploymentAllocationDecision.toAllocate) {
-      case false:
+      case false: {
+        // A close decided purely by an opt-out rule (never/offchain) can be
+        // stale: the operator may have flipped the deployment back to allocate.
+        // Closes from other gates (unsupported, overrides) must still proceed.
+        const optOutDecision =
+          deploymentAllocationDecision.ruleMatch.activationCriteria ===
+            ActivationCriteria.NEVER ||
+          deploymentAllocationDecision.ruleMatch.activationCriteria ===
+            ActivationCriteria.OFFCHAIN
+        if (optOutDecision) {
+          const currentRule =
+            currentIndexingRules.find(
+              rule =>
+                rule.identifierType === SubgraphIdentifierType.DEPLOYMENT &&
+                new SubgraphDeploymentID(rule.identifier).bytes32 ===
+                  deploymentAllocationDecision.deployment.bytes32,
+            ) ??
+            currentIndexingRules.find(
+              rule => rule.identifier === INDEXING_RULE_GLOBAL,
+            )
+          if (
+            currentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS ||
+            currentRule?.decisionBasis === IndexingDecisionBasis.DIPS
+          ) {
+            logger.info(
+              `Skipping allocation close: the opt-out rule behind this decision has changed and the current rule requests allocation`,
+              { currentDecisionBasis: currentRule.decisionBasis },
+            )
+            return
+          }
+        }
         return await operator.closeEligibleAllocations(
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
+          forceAction,
         )
+      }
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
         const indexingStatuses = await this.graphNode.indexingStatus([
@@ -996,6 +1165,14 @@ export class Agent {
                 safety: deploymentAllocationDecision.ruleMatch.rule?.safety,
               },
             )
+          } else if (
+            deploymentAllocationDecision.ruleMatch.rule?.decisionBasis ===
+            IndexingDecisionBasis.DIPS
+          ) {
+            // DipsManager creates DIPS allocations atomically with acceptance; reconcile would race it.
+            logger.debug(
+              'Deferring allocation creation to DipsManager for DIPS-basis deployment',
+            )
           } else {
             // Fetch the latest closed allocation, if any
             const mostRecentlyClosedAllocation = (
@@ -1007,7 +1184,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
-              isHorizon,
+              forceAction,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {
@@ -1016,9 +1193,9 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               activeDeploymentAllocations,
+              forceAction,
             )
           } else {
-            // Refresh any expiring allocations
             const expiringAllocations = await this.identifyExpiringAllocations(
               logger,
               activeDeploymentAllocations,
@@ -1028,10 +1205,10 @@ export class Agent {
               network,
             )
             if (expiringAllocations.length > 0) {
-              await operator.refreshExpiredAllocations(
+              await operator.presentPOIForAllocations(
                 logger,
-                deploymentAllocationDecision,
                 expiringAllocations,
+                network,
               )
             }
           }
@@ -1043,7 +1220,7 @@ export class Agent {
   async reconcileActions(
     networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
     epoch: NetworkMapped<number>,
-    maxAllocationDuration: NetworkMapped<HorizonTransitionValue>,
+    maxAllocationDuration: NetworkMapped<number>,
   ): Promise<void> {
     // --------------------------------------------------------------------------------
     // Filter out networks set to `manual` allocation management mode, and ensure the
@@ -1125,6 +1302,15 @@ export class Agent {
         const activeAllocations: Allocation[] =
           await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
 
+        // The decisions carry rules from a snapshot up to several polling
+        // intervals old; when this pass will close something, read the rules
+        // fresh too so opt-out closes re-validate against current intent.
+        const currentIndexingRules = allocationDecisions.some(
+          decision => !decision.toAllocate,
+        )
+          ? await operator.indexingRules(true)
+          : []
+
         this.logger.trace(`Reconcile allocation actions`, {
           protocolNetwork: network.specification.networkIdentifier,
           epoch,
@@ -1147,6 +1333,7 @@ export class Agent {
             maxAllocationDuration,
             network,
             operator,
+            currentIndexingRules,
           ),
         )
       },
@@ -1197,10 +1384,14 @@ export class Agent {
         network.specification.networkIdentifier,
       )
     }
-    // TAP subgraph
-    if (network.specification.subgraphs.tapSubgraph?.deployment !== undefined) {
+    // Indexing payments subgraph (DIPS)
+    if (
+      network.specification.indexerOptions.enableDips &&
+      network.specification.subgraphs.indexingPaymentsSubgraph?.deployment !==
+        undefined
+    ) {
       await this.ensureSubgraphIndexing(
-        network.specification.subgraphs.tapSubgraph.deployment,
+        network.specification.subgraphs.indexingPaymentsSubgraph.deployment,
         network.specification.networkIdentifier,
       )
     }

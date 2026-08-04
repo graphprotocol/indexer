@@ -9,7 +9,6 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   PresentPOIResult,
-  ReallocateAllocationResult,
   ResizeAllocationResult,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
@@ -281,64 +280,6 @@ export const closeAllocation = async (
   }
 
   return result.data.closeAllocation
-}
-
-export const reallocateAllocation = async (
-  client: IndexerManagementClient,
-  allocationID: string,
-  poi: string | undefined,
-  blockNumber: number | undefined,
-  publicPOI: string | undefined,
-  amount: bigint,
-  force: boolean,
-  protocolNetwork: string,
-): Promise<ReallocateAllocationResult> => {
-  const result = await client
-    .mutation(
-      gql`
-        mutation reallocateAllocation(
-          $allocation: String!
-          $poi: String
-          $blockNumber: Int
-          $publicPOI: String
-          $amount: String!
-          $force: Boolean
-          $protocolNetwork: String!
-        ) {
-          reallocateAllocation(
-            allocation: $allocation
-            poi: $poi
-            blockNumber: $blockNumber
-            publicPOI: $publicPOI
-            amount: $amount
-            force: $force
-            protocolNetwork: $protocolNetwork
-          ) {
-            closedAllocation
-            indexingRewardsCollected
-            createdAllocation
-            createdAllocationStake
-            protocolNetwork
-          }
-        }
-      `,
-      {
-        allocation: allocationID,
-        poi,
-        blockNumber: blockNumber,
-        publicPOI,
-        amount: amount.toString(),
-        force,
-        protocolNetwork,
-      },
-    )
-    .toPromise()
-
-  if (result.error) {
-    throw result.error
-  }
-
-  return result.data.reallocateAllocation
 }
 
 export const submitCollectReceiptsJob = async (

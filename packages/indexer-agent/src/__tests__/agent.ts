@@ -1,9 +1,15 @@
 import {
+  Agent,
+  addIndexingPaymentsSubgraphToTarget,
   convertSubgraphBasedRulesToDeploymentBased,
   consolidateAllocationDecisions,
   resolveTargetDeployments,
 } from '../agent'
 import {
+  ActivationCriteria,
+  Allocation,
+  AllocationDecision,
+  AllocationStatus,
   INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
@@ -326,5 +332,542 @@ describe('resolveTargetDeployments function', () => {
     expect([...result].map(d => d.ipfsHash)).toContain(
       offchainArgDeployment.ipfsHash,
     )
+  })
+})
+
+describe('reconcileDeploymentAllocationAction', () => {
+  const deployment = new SubgraphDeploymentID(
+    'QmXZiV6S13ha6QXq4dmaM3TB4CHcDxBMvGexSNu9Kc28EH',
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockLogger: any = {
+    child: jest.fn().mockReturnThis(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+  }
+
+  const activeAllocations: Allocation[] = [
+    {
+      id: '0x0000000000000000000000000000000000000001',
+      status: AllocationStatus.ACTIVE,
+      isLegacy: false,
+      subgraphDeployment: {
+        id: deployment,
+        ipfsHash: deployment.ipfsHash,
+      },
+      indexer: '0x0000000000000000000000000000000000000000',
+      allocatedTokens: BigInt(1000),
+      createdAt: 0,
+      createdAtEpoch: 1,
+      createdAtBlockHash: '0x0',
+      closedAt: 0,
+      closedAtEpoch: 0,
+      closedAtEpochStartBlockHash: undefined,
+      previousEpochStartBlockHash: undefined,
+      closedAtBlockHash: '0x0',
+      poi: undefined,
+      queryFeeRebates: undefined,
+      queryFeesCollected: undefined,
+    } as unknown as Allocation,
+  ]
+
+  const decision = new AllocationDecision(
+    deployment,
+    {
+      identifier: deployment.ipfsHash,
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      allocationAmount: '1000',
+      decisionBasis: IndexingDecisionBasis.RULES,
+    } as IndexingRuleAttributes,
+    true,
+    ActivationCriteria.SIGNAL_THRESHOLD,
+    'eip155:42161',
+  )
+
+  function createAgent() {
+    const agent = Object.create(Agent.prototype)
+    agent.logger = mockLogger
+    agent.graphNode = {
+      indexingStatus: jest.fn().mockResolvedValue([
+        {
+          subgraphDeployment: { ipfsHash: deployment.ipfsHash },
+          health: 'healthy',
+        },
+      ]),
+    }
+    agent.identifyExpiringAllocations = jest
+      .fn()
+      .mockResolvedValue([activeAllocations[0]])
+    return agent
+  }
+
+  function createOperator() {
+    return {
+      closeEligibleAllocations: jest.fn(),
+      createAllocation: jest.fn(),
+      presentPOIForAllocations: jest.fn(),
+    }
+  }
+
+  function createNetwork() {
+    return {
+      specification: { networkIdentifier: 'eip155:42161' },
+      networkMonitor: {
+        closedAllocations: jest.fn().mockResolvedValue([]),
+      },
+    }
+  }
+
+  it('calls presentPOIForAllocations for expiring allocations', async () => {
+    const agent = createAgent()
+    const operator = createOperator()
+    const network = createNetwork()
+
+    await agent.reconcileDeploymentAllocationAction(
+      decision,
+      activeAllocations,
+      10,
+      28,
+      network,
+      operator,
+      [],
+      false,
+    )
+
+    expect(agent.identifyExpiringAllocations).toHaveBeenCalled()
+    expect(operator.presentPOIForAllocations).toHaveBeenCalledWith(
+      expect.anything(),
+      [activeAllocations[0]],
+      network,
+    )
+  })
+
+  // DipsManager owns DIPS allocation creation; reconcile racing it produces orphan allocations.
+  it('skips createAllocation for DIPS-basis rules with no active allocation', async () => {
+    const agent = createAgent()
+    const operator = createOperator()
+    const network = createNetwork()
+
+    const dipsDecision = new AllocationDecision(
+      deployment,
+      {
+        identifier: deployment.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        allocationAmount: '1000',
+        decisionBasis: IndexingDecisionBasis.DIPS,
+      } as IndexingRuleAttributes,
+      true,
+      ActivationCriteria.DIPS,
+      'eip155:42161',
+    )
+
+    await agent.reconcileDeploymentAllocationAction(
+      dipsDecision,
+      [],
+      10,
+      28,
+      network,
+      operator,
+      [],
+      false,
+    )
+
+    expect(operator.createAllocation).not.toHaveBeenCalled()
+    expect(network.networkMonitor.closedAllocations).not.toHaveBeenCalled()
+  })
+
+  // The close decision embeds a rule snapshot up to several polling intervals
+  // old; the fresh-rules re-check must win when the two disagree.
+  describe('re-validates a close decision against the current rules', () => {
+    const closeDecision = new AllocationDecision(
+      deployment,
+      {
+        identifier: deployment.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.NEVER,
+      } as IndexingRuleAttributes,
+      false,
+      ActivationCriteria.NEVER,
+      'eip155:42161',
+    )
+    const currentRule = (basis: IndexingDecisionBasis) =>
+      ({
+        identifier: deployment.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: basis,
+      }) as IndexingRuleAttributes
+
+    it('skips the close when the current rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    it('skips the close when the current rule says dips', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.DIPS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    // The incident's close was decided under an offchain rule (the management
+    // API's close stamp), so pin that flavour of the guard explicitly.
+    it('skips an offchain-decided close when the current rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const offchainDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.OFFCHAIN,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        offchainDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    it('closes when the current rule still opts out', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.NEVER)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+
+    it('closes when no current rule exists for the deployment', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+
+    it('skips the close when a global always rule governs the deployment', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const globalRule = {
+        identifier: INDEXING_RULE_GLOBAL,
+        identifierType: SubgraphIdentifierType.GROUP,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+      } as IndexingRuleAttributes
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [globalRule],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    // A denied deployment yields toAllocate=false with UNSUPPORTED criteria
+    // even under an always rule; that close is current and must proceed.
+    it('closes an unsupported deployment even when the rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const unsupportedDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.UNSUPPORTED,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        unsupportedDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+
+    // reconcileActions flips toAllocate to false for the network subgraph
+    // while its rule still says always; that deliberate override must win.
+    it('closes a config-overridden decision even when the rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const overriddenDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.ALWAYS,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        overriddenDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+  })
+})
+
+describe('addIndexingPaymentsSubgraphToTarget function', () => {
+  const paymentsDeployment = new SubgraphDeploymentID(
+    'QmddSbatCN1XmufoBm1bBwPx4L3FtuMAMHUNNBSPzrgL2a',
+  )
+
+  it('pushes the deployment when enableDips is true and deployment is defined', () => {
+    const target: SubgraphDeploymentID[] = []
+    addIndexingPaymentsSubgraphToTarget(true, paymentsDeployment, target)
+    expect(target.map(d => d.bytes32)).toContain(paymentsDeployment.bytes32)
+  })
+
+  it('does nothing when enableDips is false', () => {
+    const target: SubgraphDeploymentID[] = []
+    addIndexingPaymentsSubgraphToTarget(false, paymentsDeployment, target)
+    expect(target).toHaveLength(0)
+  })
+
+  it('does nothing when deployment is undefined', () => {
+    const target: SubgraphDeploymentID[] = []
+    addIndexingPaymentsSubgraphToTarget(true, undefined, target)
+    expect(target).toHaveLength(0)
+  })
+
+  it('does not duplicate an already-present deployment', () => {
+    const target: SubgraphDeploymentID[] = [paymentsDeployment]
+    addIndexingPaymentsSubgraphToTarget(true, paymentsDeployment, target)
+    expect(target).toHaveLength(1)
+  })
+})
+
+describe('reconcileDeployments indexing-payments carve-out wiring', () => {
+  const paymentsDeployment = new SubgraphDeploymentID(
+    'QmddSbatCN1XmufoBm1bBwPx4L3FtuMAMHUNNBSPzrgL2a',
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockLogger: any = {
+    child: jest.fn().mockReturnThis(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    trace: jest.fn(),
+  }
+
+  function createAgentUnderTest(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    network: any,
+    dipsDeployments: SubgraphDeploymentID[] = [],
+    dipsManagerPresent = true,
+  ) {
+    const operator = {
+      dipsManager: dipsManagerPresent
+        ? {
+            getActiveDipsDeployments: jest
+              .fn()
+              .mockResolvedValue(dipsDeployments),
+          }
+        : null,
+    }
+    const agent = Object.create(Agent.prototype)
+    agent.logger = mockLogger
+    agent.offchainSubgraphs = []
+    agent.multiNetworks = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map: async (fn: any) => Promise.all([fn({ network, operator })]),
+    }
+    agent.graphNode = {
+      subgraphDeploymentsAssignments: jest.fn().mockResolvedValue([]),
+      ensure: jest.fn().mockResolvedValue(undefined),
+      pause: jest.fn().mockResolvedValue(undefined),
+    }
+    return agent
+  }
+
+  it('schedules the indexing-payments deployment for indexing when DIPS is enabled', async () => {
+    const agent = createAgentUnderTest({
+      networkSubgraph: { deployment: undefined },
+      specification: { indexerOptions: { enableDips: true } },
+      indexingPaymentsSubgraph: { deployment: { id: paymentsDeployment } },
+    })
+
+    await agent.reconcileDeployments([], [], [])
+
+    const ensureCalls = agent.graphNode.ensure.mock.calls
+    const ensuredDeployments = ensureCalls.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (call: any[]) => (call[1] as SubgraphDeploymentID).bytes32,
+    )
+    expect(ensuredDeployments).toContain(paymentsDeployment.bytes32)
+  })
+
+  it('does not schedule the indexing-payments deployment when DIPS is disabled', async () => {
+    const agent = createAgentUnderTest({
+      networkSubgraph: { deployment: undefined },
+      specification: { indexerOptions: { enableDips: false } },
+      indexingPaymentsSubgraph: { deployment: { id: paymentsDeployment } },
+    })
+
+    await agent.reconcileDeployments([], [], [])
+
+    expect(agent.graphNode.ensure).not.toHaveBeenCalled()
+  })
+
+  it('does not schedule the indexing-payments deployment when deployment is undefined', async () => {
+    const agent = createAgentUnderTest({
+      networkSubgraph: { deployment: undefined },
+      specification: { indexerOptions: { enableDips: true } },
+      indexingPaymentsSubgraph: { deployment: undefined },
+    })
+
+    await agent.reconcileDeployments([], [], [])
+
+    expect(agent.graphNode.ensure).not.toHaveBeenCalled()
+  })
+
+  it('does not pause an active deployment that has an active DIPS agreement', async () => {
+    const dipsDeployment = new SubgraphDeploymentID(
+      'QmWTbiUJQPEYDdUxt7sS8EWGwkxWmWTApJPaeGa4NXMqHQ',
+    )
+    const agent = createAgentUnderTest(
+      {
+        networkSubgraph: { deployment: undefined },
+        specification: { indexerOptions: { enableDips: true } },
+        indexingPaymentsSubgraph: { deployment: undefined },
+      },
+      [dipsDeployment],
+    )
+
+    // Active (being indexed) but absent from the target and eligible-allocation sets.
+    await agent.reconcileDeployments([dipsDeployment], [], [])
+
+    const pausedDeployments = agent.graphNode.pause.mock.calls.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (call: any[]) => (call[0] as SubgraphDeploymentID).bytes32,
+    )
+    expect(pausedDeployments).not.toContain(dipsDeployment.bytes32)
+  })
+
+  it('pauses an active deployment with no DIPS agreement that is not targeted', async () => {
+    const orphan = new SubgraphDeploymentID(
+      'QmNYBVzrWYrhmNF7srCs9qNUUnK1urXA1dNACrRp9xVPrH',
+    )
+    const agent = createAgentUnderTest(
+      {
+        networkSubgraph: { deployment: undefined },
+        specification: { indexerOptions: { enableDips: true } },
+        indexingPaymentsSubgraph: { deployment: undefined },
+      },
+      [],
+    )
+
+    await agent.reconcileDeployments([orphan], [], [])
+
+    const pausedDeployments = agent.graphNode.pause.mock.calls.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (call: any[]) => (call[0] as SubgraphDeploymentID).bytes32,
+    )
+    expect(pausedDeployments).toContain(orphan.bytes32)
+  })
+
+  it('skips DIPS protection without throwing when the DipsManager is not yet available', async () => {
+    const orphan = new SubgraphDeploymentID(
+      'QmNYBVzrWYrhmNF7srCs9qNUUnK1urXA1dNACrRp9xVPrH',
+    )
+    const agent = createAgentUnderTest(
+      {
+        networkSubgraph: { deployment: undefined },
+        specification: { indexerOptions: { enableDips: true } },
+        indexingPaymentsSubgraph: { deployment: undefined },
+      },
+      [],
+      false, // DIPS enabled, but the DipsManager has not been registered yet.
+    )
+
+    await expect(
+      agent.reconcileDeployments([orphan], [], []),
+    ).resolves.not.toThrow()
   })
 })

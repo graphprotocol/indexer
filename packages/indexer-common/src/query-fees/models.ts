@@ -1,35 +1,8 @@
 import { DataTypes, Sequelize, Model, Association, CreationOptional } from 'sequelize'
 import { Address, toAddress } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
-import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
 import { RAV as RAVv2 } from '@graphprotocol/toolshed'
 import { BytesLike } from 'ethers'
-
-export interface ScalarTapReceiptsAttributes {
-  id: number
-  allocation_id: Address
-  signer_address: Address
-  signature: Uint8Array
-  timestamp_ns: bigint
-  nonce: bigint
-  value: bigint
-  error_log?: string
-}
-export class ScalarTapReceipts
-  extends Model<ScalarTapReceiptsAttributes>
-  implements ScalarTapReceiptsAttributes
-{
-  public id!: number
-  public allocation_id!: Address
-  public signer_address!: Address
-  public signature!: Uint8Array
-  public timestamp_ns!: bigint
-  public nonce!: bigint
-  public value!: bigint
-
-  declare createdAt: CreationOptional<Date>
-  declare updatedAt: CreationOptional<Date>
-}
 
 export interface TapHorizonReceiptsAttributes {
   id: number
@@ -61,23 +34,6 @@ export class TapHorizonReceipts
   public timestamp_ns!: bigint
   public nonce!: bigint
   public value!: bigint
-
-  declare createdAt: CreationOptional<Date>
-  declare updatedAt: CreationOptional<Date>
-}
-
-export class ScalarTapReceiptsInvalid
-  extends Model<ScalarTapReceiptsAttributes>
-  implements ScalarTapReceiptsAttributes
-{
-  public id!: number
-  public allocation_id!: Address
-  public signer_address!: Address
-  public timestamp_ns!: bigint
-  public nonce!: bigint
-  public value!: bigint
-  public signature!: Uint8Array
-  public error_log!: string
 
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
@@ -150,17 +106,6 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
   }
 }
 
-export interface ReceiptAggregateVoucherAttributes {
-  allocationId: string
-  senderAddress: string
-  signature: Uint8Array
-  timestampNs: bigint
-  valueAggregate: bigint
-  last: boolean
-  redeemedAt: Date | null
-  final: boolean
-}
-
 export interface ReceiptAggregateVoucherV2Attributes {
   signature: Uint8Array
   collectionId: string
@@ -176,14 +121,6 @@ export interface ReceiptAggregateVoucherV2Attributes {
   redeemedAt: Date | null
 }
 
-export interface FailedReceiptAggregateVoucherAttributes {
-  allocationId: string
-  senderAddress: string
-  expectedRav: JSON
-  rav_response: JSON
-  reason: string
-}
-
 export interface FailedReceiptAggregateVoucherV2Attributes {
   collectionId: string
   payer: string
@@ -192,40 +129,6 @@ export interface FailedReceiptAggregateVoucherV2Attributes {
   expectedRav: JSON
   rav_response: JSON
   reason: string
-}
-
-export class ReceiptAggregateVoucher
-  extends Model<ReceiptAggregateVoucherAttributes>
-  implements ReceiptAggregateVoucherAttributes
-{
-  declare allocationId: Address
-  declare senderAddress: Address
-  declare signature: Uint8Array
-  declare timestampNs: bigint
-  declare valueAggregate: bigint
-  declare final: boolean
-  declare last: boolean
-  declare redeemedAt: Date | null
-
-  declare createdAt: CreationOptional<Date>
-  declare updatedAt: CreationOptional<Date>
-
-  public readonly allocationSummary?: AllocationSummary
-
-  public static associations: {
-    allocationSummary: Association<ReceiptAggregateVoucher, AllocationSummary>
-  }
-
-  getSignedRAV(): SignedRAV {
-    return {
-      rav: {
-        allocationId: this.allocationId,
-        timestampNs: this.timestampNs,
-        valueAggregate: this.valueAggregate,
-      },
-      signature: this.signature,
-    }
-  }
 }
 
 // TODO HORIZON: move this to the toolshed package
@@ -274,19 +177,6 @@ export class ReceiptAggregateVoucherV2
       signature: this.signature,
     }
   }
-}
-
-export type SignedRAV = TAPVerifier.SignedRAVStruct
-
-export class FailedReceiptAggregateVoucher
-  extends Model<FailedReceiptAggregateVoucherAttributes>
-  implements FailedReceiptAggregateVoucherAttributes
-{
-  public allocationId!: Address
-  public senderAddress!: Address
-  public expectedRav!: JSON
-  public rav_response!: JSON
-  public reason!: string
 }
 
 export class FailedReceiptAggregateVoucherV2
@@ -396,16 +286,14 @@ export class AllocationSummary
   public readonly transfers?: Transfer[]
   public readonly allocationReceipts?: AllocationReceipt[]
   public readonly voucher?: Voucher
-  public readonly receiptAggregateVoucher?: ReceiptAggregateVoucher
   public readonly receiptAggregateVoucherV2?: ReceiptAggregateVoucherV2
 
-  public voucherType?: 'Voucher' | 'ReceiptAggregateVoucher' | 'ReceiptAggregateVoucherV2'
+  public voucherType?: 'Voucher' | 'ReceiptAggregateVoucherV2'
 
   public static associations: {
     transfers: Association<AllocationSummary, Transfer>
     allocationReceipts: Association<AllocationSummary, AllocationReceipt>
     voucher: Association<AllocationSummary, Voucher>
-    receiptAggregateVoucher: Association<AllocationSummary, ReceiptAggregateVoucher>
     receiptAggregateVoucherV2: Association<AllocationSummary, ReceiptAggregateVoucherV2>
   }
 }
@@ -413,14 +301,10 @@ export class AllocationSummary
 export interface QueryFeeModels {
   allocationReceipts: typeof AllocationReceipt
   vouchers: typeof Voucher
-  receiptAggregateVouchers: typeof ReceiptAggregateVoucher
   receiptAggregateVouchersV2: typeof ReceiptAggregateVoucherV2
   transferReceipts: typeof TransferReceipt
   transfers: typeof Transfer
   allocationSummaries: typeof AllocationSummary
-  scalarTapReceipts: typeof ScalarTapReceipts
-  scalarTapReceiptsInvalid: typeof ScalarTapReceiptsInvalid
-  failedReceiptAggregateVouchers: typeof FailedReceiptAggregateVoucher
   failedReceiptAggregateVouchersV2: typeof FailedReceiptAggregateVoucherV2
 }
 
@@ -492,79 +376,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       },
     },
     { sequelize, tableName: 'vouchers' },
-  )
-
-  ReceiptAggregateVoucher.init(
-    {
-      allocationId: {
-        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
-        allowNull: false,
-        primaryKey: true,
-        get() {
-          const rawValue = this.getDataValue('allocationId')
-          return toAddress(rawValue)
-        },
-        set(value: Address) {
-          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('allocationId', addressWithoutPrefix)
-        },
-      },
-      senderAddress: {
-        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
-        allowNull: false,
-        primaryKey: true,
-        get() {
-          const rawValue = this.getDataValue('senderAddress')
-          return toAddress(rawValue)
-        },
-        set(value: string) {
-          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('senderAddress', addressWithoutPrefix)
-        },
-      },
-      signature: {
-        type: DataTypes.BLOB,
-        allowNull: false,
-      },
-      // ternary operator added to timestampNs and valueAggregate
-      // due to sequelize UPDATE
-      // calls  the getters with undefined data
-      // 0 is returned since no real data is being requested
-      timestampNs: {
-        type: DataTypes.DECIMAL,
-        allowNull: false,
-        get() {
-          return BigInt(this.getDataValue('timestampNs'))
-        },
-      },
-      valueAggregate: {
-        type: DataTypes.DECIMAL,
-        allowNull: false,
-        get() {
-          return BigInt(this.getDataValue('valueAggregate'))
-        },
-      },
-      last: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      final: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      redeemedAt: {
-        type: DataTypes.DATE,
-        allowNull: true,
-        defaultValue: null,
-      },
-    },
-    {
-      underscored: true,
-      sequelize,
-      tableName: 'scalar_tap_ravs',
-    },
   )
 
   ReceiptAggregateVoucherV2.init(
@@ -793,54 +604,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     { sequelize, tableName: 'allocation_summaries' },
   )
 
-  FailedReceiptAggregateVoucher.init(
-    {
-      allocationId: {
-        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
-        allowNull: false,
-        primaryKey: true,
-        get() {
-          const rawValue = this.getDataValue('allocationId')
-          return toAddress(rawValue)
-        },
-        set(value: Address) {
-          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('allocationId', addressWithoutPrefix)
-        },
-      },
-      senderAddress: {
-        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
-        allowNull: false,
-        primaryKey: true,
-        get() {
-          const rawValue = this.getDataValue('senderAddress')
-          return toAddress(rawValue)
-        },
-        set(value: string) {
-          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('senderAddress', addressWithoutPrefix)
-        },
-      },
-      expectedRav: {
-        type: DataTypes.JSON,
-        allowNull: false,
-      },
-      rav_response: {
-        type: DataTypes.JSON,
-        allowNull: false,
-      },
-      reason: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-    },
-    {
-      underscored: true,
-      sequelize,
-      tableName: 'failed_receipt_aggregate_vouchers',
-    },
-  )
-
   FailedReceiptAggregateVoucherV2.init(
     {
       collectionId: {
@@ -915,46 +678,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     },
   )
 
-  ScalarTapReceipts.init(
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      allocation_id: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
-      signer_address: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
-      signature: {
-        type: DataTypes.BLOB,
-        allowNull: false,
-      },
-      timestamp_ns: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
-      },
-      nonce: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
-      },
-      value: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
-      },
-    },
-    {
-      underscored: true,
-      sequelize,
-      tableName: 'scalar_tap_receipts',
-    },
-  )
-
   TapHorizonReceipts.init(
     {
       id: {
@@ -1004,51 +727,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       underscored: true,
       sequelize,
       tableName: 'tap_horizon_receipts',
-    },
-  )
-
-  ScalarTapReceiptsInvalid.init(
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      allocation_id: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
-      signer_address: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
-      timestamp_ns: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
-      },
-      nonce: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
-      },
-      value: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
-      },
-      signature: {
-        type: DataTypes.BLOB,
-        allowNull: false,
-      },
-      error_log: {
-        type: DataTypes.TEXT,
-        allowNull: false,
-        defaultValue: '',
-      },
-    },
-    {
-      underscored: true,
-      sequelize,
-      tableName: 'scalar_tap_receipts_invalid',
     },
   )
 
@@ -1154,14 +832,10 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
   return {
     allocationReceipts: AllocationReceipt,
     vouchers: Voucher,
-    receiptAggregateVouchers: ReceiptAggregateVoucher,
     receiptAggregateVouchersV2: ReceiptAggregateVoucherV2,
     transferReceipts: TransferReceipt,
     transfers: Transfer,
     allocationSummaries: AllocationSummary,
-    scalarTapReceipts: ScalarTapReceipts,
-    scalarTapReceiptsInvalid: ScalarTapReceiptsInvalid,
-    failedReceiptAggregateVouchers: FailedReceiptAggregateVoucher,
     failedReceiptAggregateVouchersV2: FailedReceiptAggregateVoucherV2,
   }
 }

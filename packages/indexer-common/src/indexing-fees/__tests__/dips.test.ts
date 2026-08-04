@@ -1,0 +1,1208 @@
+import {
+  DipsManager,
+  GraphNode,
+  IndexerManagementModels,
+  Network,
+  QueryFeeModels,
+  defineIndexerManagementModels,
+  defineQueryFeeModels,
+  SubgraphIdentifierType,
+  IndexingDecisionBasis,
+  AllocationManager,
+  createIndexerManagementClient,
+  Operator,
+  ActionManager,
+  IndexerManagementClient,
+  MultiNetworks,
+} from '@graphprotocol/indexer-common'
+import type { SubgraphIndexingAgreement } from '../agreement-monitor'
+import { DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS } from '../dips'
+import { definePendingRcaProposalModel } from '../../indexer-management/models/pending-rca-proposal'
+import {
+  connectDatabase,
+  createLogger,
+  createMetrics,
+  Logger,
+  Metrics,
+  parseGRT,
+  SubgraphDeploymentID,
+} from '@graphprotocol/common-ts'
+import { Sequelize } from 'sequelize'
+import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
+
+// Make global Jest variables available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const __DATABASE__: any
+declare const __LOG_LEVEL__: never
+
+// Add these type declarations after the existing imports
+let sequelize: Sequelize
+let logger: Logger
+let metrics: Metrics
+let graphNode: GraphNode
+let managementModels: IndexerManagementModels
+let queryFeeModels: QueryFeeModels
+let pendingRcaModel: ReturnType<typeof definePendingRcaProposalModel>
+let network: Network
+let multiNetworks: MultiNetworks<Network>
+let indexerManagementClient: IndexerManagementClient
+let operator: Operator
+const networkSpecWithDips = {
+  ...testNetworkSpecification,
+  indexerOptions: {
+    ...testNetworkSpecification.indexerOptions,
+    enableDips: true,
+    dipsAllocationAmount: parseGRT('1.0'), // Amount of GRT to allocate for DIPs
+    dipsEpochsMargin: 1, // Optional: Number of epochs margin for DIPs
+  },
+}
+
+const mockSubgraphDeployment = (id: string) => {
+  return {
+    id: new SubgraphDeploymentID(id),
+    ipfsHash: id,
+    deniedAt: null,
+    stakedTokens: 1000n,
+    signalledTokens: 1000n,
+    queryFeesAmount: 0n,
+    protocolNetwork: 'eip155:421614',
+  }
+}
+
+const setCollectableAgreements = (
+  agreements: SubgraphIndexingAgreement[],
+  opts: { subgraphTimestamp?: number; subgraphMetaUnreadable?: boolean } = {},
+) => {
+  // The subgraph client answers two distinct queries: the paginated agreement
+  // list (first call returns the agreements, the rest are empty) and the _meta
+  // freshness probe. Default _meta to "now" so the rule reaper treats the
+  // subgraph as fresh; tests override it to exercise the staleness guard.
+  let agreementsServed = false
+  network.indexingPaymentsSubgraph = {
+    query: jest.fn().mockImplementation(async (doc: unknown) => {
+      const body =
+        (doc as { loc?: { source?: { body?: string } } })?.loc?.source?.body ?? ''
+      if (body.includes('_meta')) {
+        if (opts.subgraphMetaUnreadable) {
+          return { data: { _meta: null } }
+        }
+        return {
+          data: {
+            _meta: {
+              block: {
+                timestamp: opts.subgraphTimestamp ?? Math.floor(Date.now() / 1000),
+              },
+            },
+          },
+        }
+      }
+      if (agreementsServed) {
+        return { data: { indexingAgreements: [] } }
+      }
+      agreementsServed = true
+      return { data: { indexingAgreements: agreements } }
+    }),
+  } as unknown as Network['indexingPaymentsSubgraph']
+}
+
+jest.spyOn(ActionManager.prototype, 'monitorQueue').mockImplementation(async () => {})
+const setup = async () => {
+  logger = createLogger({
+    name: 'DIPs Test Logger',
+    async: false,
+    level: __LOG_LEVEL__ ?? 'error',
+  })
+  metrics = createMetrics()
+  // Clearing the registry prevents duplicate metric registration in the default registry.
+  metrics.registry.clear()
+
+  graphNode = new GraphNode(
+    logger,
+    'https://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
+    'https://test-status-endpoint.xyz',
+    'https://test-ipfs-endpoint.xyz',
+  )
+
+  sequelize = await connectDatabase(__DATABASE__)
+  managementModels = defineIndexerManagementModels(sequelize)
+  queryFeeModels = defineQueryFeeModels(sequelize)
+  pendingRcaModel = definePendingRcaProposalModel(sequelize)
+  sequelize = await sequelize.sync({ force: true })
+
+  network = await Network.create(
+    logger,
+    networkSpecWithDips,
+    managementModels,
+    queryFeeModels,
+    graphNode,
+    metrics,
+  )
+
+  multiNetworks = new MultiNetworks(
+    [network],
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
+  indexerManagementClient = await createIndexerManagementClient({
+    models: managementModels,
+    graphNode,
+    logger,
+    defaults: {
+      globalIndexingRule: {
+        allocationAmount: parseGRT('1000'),
+        parallelAllocations: 1,
+      },
+    },
+    multiNetworks,
+    pendingRcaModel,
+  })
+
+  operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
+}
+
+const ensureGlobalIndexingRule = async () => {
+  await operator.ensureGlobalIndexingRule()
+  logger.debug('Ensured global indexing rule')
+}
+
+const setupEach = async () => {
+  sequelize = await sequelize.sync({ force: true })
+  await ensureGlobalIndexingRule()
+  setCollectableAgreements([])
+}
+
+const teardownEach = async () => {
+  // Clear out query fee model tables
+  await queryFeeModels.allocationReceipts.truncate({ cascade: true })
+  await queryFeeModels.vouchers.truncate({ cascade: true })
+  await queryFeeModels.transferReceipts.truncate({ cascade: true })
+  await queryFeeModels.transfers.truncate({ cascade: true })
+  await queryFeeModels.allocationSummaries.truncate({ cascade: true })
+
+  // Clear out indexer management models
+  await managementModels.Action.truncate({ cascade: true })
+  await managementModels.CostModel.truncate({ cascade: true })
+  await managementModels.IndexingRule.truncate({ cascade: true })
+  await managementModels.POIDispute.truncate({ cascade: true })
+
+  await pendingRcaModel.truncate({ cascade: true })
+}
+
+const teardownAll = async () => {
+  await sequelize.drop({})
+}
+
+describe('DipsManager', () => {
+  beforeAll(setup)
+  beforeEach(setupEach)
+  afterEach(teardownEach)
+  afterAll(teardownAll)
+
+  // We have been rate-limited on CI as this test uses RPC providers,
+  // so we set its timeout to a higher value than usual.
+  jest.setTimeout(30_000)
+
+  describe('agreement management', () => {
+    let dipsManager: DipsManager
+    const testDeploymentId = 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7'
+    const testAllocationId = 'abcd47df40c29949a75a6693c77834c00b8ad626'
+    const testAgreementId = '123e4567-e89b-12d3-a456-426614174000'
+
+    beforeEach(async () => {
+      // Clear mock calls between tests
+      jest.clearAllMocks()
+
+      // Deterministic epoch length for the seconds→epochs conversion: 5 blocks × 12s = 60s/epoch.
+      network.contracts.EpochManager.epochLength = jest
+        .fn()
+        .mockResolvedValue(
+          5n,
+        ) as unknown as typeof network.contracts.EpochManager.epochLength
+
+      const allocationManager = new AllocationManager(
+        logger,
+        managementModels,
+        graphNode,
+        network,
+        pendingRcaModel,
+      )
+
+      dipsManager = new DipsManager(
+        logger,
+        managementModels,
+        network,
+        graphNode,
+        allocationManager,
+        pendingRcaModel,
+      )
+    })
+
+    test('creates DIPS indexing rule for a pending RCA proposal', async () => {
+      network.networkMonitor.subgraphDeployment = jest
+        .fn()
+        .mockResolvedValue(mockSubgraphDeployment(testDeploymentId))
+
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([
+          {
+            id: testAgreementId,
+            status: 'pending',
+            createdAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
+            endsAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+            // Remaining fields are not consulted by ensureAgreementRules; cast to satisfy the type.
+          } as never,
+        ])
+      setCollectableAgreements([])
+
+      await dipsManager.ensureAgreementRules()
+
+      const rules = await managementModels.IndexingRule.findAll({
+        where: { identifier: testDeploymentId },
+      })
+      expect(rules).toHaveLength(1)
+      expect(rules[0]).toMatchObject({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        autoRenewal: true,
+        allocationLifetime: 60, // ceil(max(min,max)=3600s / 60s-per-epoch)
+      })
+    })
+
+    test('creates DIPS indexing rule for an active accepted agreement', async () => {
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      network.networkMonitor.subgraphDeployment = jest
+        .fn()
+        .mockResolvedValue(mockSubgraphDeployment(testDeploymentId))
+
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      setCollectableAgreements([
+        {
+          id: testAgreementId,
+          allocationId: testAllocationId,
+          subgraphDeploymentId: testDeploymentId,
+          state: 'Accepted',
+          lastCollectionAt: '0',
+          endsAt: farFuture,
+          maxInitialTokens: '0',
+          maxOngoingTokensPerSecond: '0',
+          tokensPerSecond: '0',
+          tokensPerEntityPerSecond: '0',
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 1800,
+          canceledAt: '0',
+        },
+      ])
+
+      await dipsManager.ensureAgreementRules()
+
+      const rules = await managementModels.IndexingRule.findAll({
+        where: { identifier: testDeploymentId },
+      })
+      expect(rules).toHaveLength(1)
+      expect(rules[0].decisionBasis).toBe(IndexingDecisionBasis.DIPS)
+      expect(rules[0].allocationLifetime).toBe(30)
+    })
+
+    test('deduplicates when a deployment has both a pending proposal and an accepted agreement', async () => {
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([
+          {
+            id: 'pending-id',
+            status: 'pending',
+            createdAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
+            endsAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      setCollectableAgreements([
+        {
+          id: testAgreementId,
+          allocationId: testAllocationId,
+          subgraphDeploymentId: testDeploymentId,
+          state: 'Accepted',
+          lastCollectionAt: '0',
+          endsAt: farFuture,
+          maxInitialTokens: '0',
+          maxOngoingTokensPerSecond: '0',
+          tokensPerSecond: '0',
+          tokensPerEntityPerSecond: '0',
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 1800,
+          canceledAt: '0',
+        },
+      ])
+      network.networkMonitor.subgraphDeployment = jest
+        .fn()
+        .mockResolvedValue(mockSubgraphDeployment(testDeploymentId))
+
+      await dipsManager.ensureAgreementRules()
+
+      const rules = await managementModels.IndexingRule.findAll({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rules).toHaveLength(1)
+    })
+
+    test('rejects pending proposal for a blocklisted deployment and creates no rule', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.NEVER,
+        protocolNetwork: 'eip155:421614',
+      })
+
+      const markRejected = jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'markRejected')
+        .mockResolvedValue()
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([
+          {
+            id: testAgreementId,
+            status: 'pending',
+            createdAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
+            endsAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      setCollectableAgreements([])
+
+      await dipsManager.ensureAgreementRules()
+
+      expect(markRejected).toHaveBeenCalledWith(testAgreementId, 'deployment blocklisted')
+      const dipsRules = await managementModels.IndexingRule.findAll({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(dipsRules).toHaveLength(0)
+    })
+
+    test('preserves a pre-existing non-DIPS rule (does not overwrite)', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        allocationLifetime: 16,
+        requireSupported: true,
+        safety: true,
+        protocolNetwork: 'eip155:421614',
+        allocationAmount: '1030',
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([
+          {
+            id: testAgreementId,
+            status: 'pending',
+            createdAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
+            endsAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      setCollectableAgreements([])
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        },
+      })
+      expect(rule).not.toBeNull()
+      expect(rule?.allocationLifetime).toBe(16)
+    })
+
+    test('returns deduped union of pending-proposal and active-agreement deployments', async () => {
+      const otherDeploymentId = 'QmYBNHbqVgseAVKr3rJqkXMpwWa2zdrgJ2dKZTqtFhRzGV'
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([
+          {
+            id: 'pending-1',
+            status: 'pending',
+            createdAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
+            endsAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      setCollectableAgreements([
+        {
+          id: testAgreementId,
+          allocationId: testAllocationId,
+          subgraphDeploymentId: otherDeploymentId,
+          state: 'Accepted',
+          lastCollectionAt: '0',
+          endsAt: farFuture,
+          maxInitialTokens: '0',
+          maxOngoingTokensPerSecond: '0',
+          tokensPerSecond: '0',
+          tokensPerEntityPerSecond: '0',
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 1800,
+          canceledAt: '0',
+        },
+        // Duplicate of the pending one — must dedupe.
+        {
+          id: 'agreement-2',
+          allocationId: testAllocationId,
+          subgraphDeploymentId: testDeploymentId,
+          state: 'Accepted',
+          lastCollectionAt: '0',
+          endsAt: farFuture,
+          maxInitialTokens: '0',
+          maxOngoingTokensPerSecond: '0',
+          tokensPerSecond: '0',
+          tokensPerEntityPerSecond: '0',
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 1800,
+          canceledAt: '0',
+        },
+      ])
+
+      const deployments = await dipsManager.getActiveDipsDeployments()
+      const ipfsHashes = deployments.map((d) => d.ipfsHash).sort()
+      expect(ipfsHashes).toEqual([testDeploymentId, otherDeploymentId].sort())
+    })
+
+    test('removes DIPS rule whose deployment has neither pending proposal nor active agreement', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      setCollectableAgreements([])
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).toBeNull()
+    })
+
+    test('keeps a freshly accepted DIPS rule while the subgraph has not yet indexed the agreement', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      // Accepted on-chain just now; its durable accepted row keeps the rule alive
+      // even though the subgraph has not indexed the agreement into the active set.
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const markCompleted = jest.spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+      // Subgraph is fresh but its head is behind the just-now acceptance.
+      setCollectableAgreements([], {
+        subgraphTimestamp: Math.floor(Date.now() / 1000) - 30,
+      })
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+      // Not in the active set and the head is behind acceptance, so neither
+      // presence nor the time backstop retires it yet.
+      expect(markCompleted).not.toHaveBeenCalled()
+    })
+
+    test('retires the accepted row by presence once its agreement appears in the active set, even before the head reaches acceptance', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      const markCompleted = jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+        .mockResolvedValue(undefined)
+      // Accepted just now; the durable row's agreementId matches an agreement the
+      // subgraph now reports, proving the subgraph indexed the acceptance.
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      // Head is behind the just-now acceptance, so the time backstop cannot fire;
+      // only presence in the active set can retire the row here.
+      setCollectableAgreements(
+        [
+          {
+            id: testAgreementId,
+            allocationId: testAllocationId,
+            subgraphDeploymentId: testDeploymentId,
+            state: 'Accepted',
+            lastCollectionAt: '0',
+            endsAt: farFuture,
+            maxInitialTokens: '0',
+            maxOngoingTokensPerSecond: '0',
+            tokensPerSecond: '0',
+            tokensPerEntityPerSecond: '0',
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 1800,
+            canceledAt: '0',
+          },
+        ],
+        { subgraphTimestamp: Math.floor(Date.now() / 1000) - 30 },
+      )
+
+      await dipsManager.ensureAgreementRules()
+
+      expect(markCompleted).toHaveBeenCalledWith('accepted-1')
+    })
+
+    test('keeps accepted rows and warns when no indexing-payments subgraph is configured', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const markCompleted = jest.spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+      const warn = jest.spyOn(logger, 'warn')
+      // No subgraph configured: it can't drive retirement, so the rule is kept and
+      // the stuck state is surfaced rather than lingering silently forever.
+      network.indexingPaymentsSubgraph = undefined
+
+      await dipsManager.ensureAgreementRules()
+
+      expect(markCompleted).not.toHaveBeenCalled()
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'cannot be retired without the indexing-payments subgraph',
+        ),
+        expect.objectContaining({
+          stuckDeployments: [new SubgraphDeploymentID(testDeploymentId).toString()],
+        }),
+      )
+    })
+
+    test('retires the accepted row and reaps its rule once the subgraph catches up but the agreement is gone', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      const markCompleted = jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+        .mockResolvedValue(undefined)
+      // Accepted a while ago; the subgraph head (now) has indexed past it, yet
+      // the agreement is not in the active set — it is gone (or never active).
+      const acceptedProposals = jest.spyOn(
+        dipsManager.pendingRcaConsumer!,
+        'getAcceptedProposals',
+      )
+      acceptedProposals.mockResolvedValue([
+        {
+          id: 'accepted-1',
+          agreementId: testAgreementId,
+          status: 'accepted',
+          createdAt: new Date(),
+          updatedAt: new Date(Date.now() - 100_000),
+          subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 3600,
+        } as never,
+      ])
+      setCollectableAgreements([], { subgraphTimestamp: Math.floor(Date.now() / 1000) })
+
+      // First pass: the accepted row still keeps the rule this tick, but the
+      // subgraph has caught up to the acceptance, so the row is retired.
+      await dipsManager.ensureAgreementRules()
+      expect(markCompleted).toHaveBeenCalledWith('accepted-1')
+      let rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+
+      // Second pass: with the row retired, nothing backs the deployment, so the
+      // rule is reaped.
+      acceptedProposals.mockResolvedValue([])
+      setCollectableAgreements([], { subgraphTimestamp: Math.floor(Date.now() / 1000) })
+      await dipsManager.ensureAgreementRules()
+      rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).toBeNull()
+    })
+
+    test('skips rule cleanup when the indexing-payments subgraph is stale', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      // Subgraph head is well behind wall clock: its agreement list can't be
+      // trusted, so the reaper must leave the otherwise-unbacked rule alone.
+      setCollectableAgreements([], {
+        subgraphTimestamp:
+          Math.floor(Date.now() / 1000) -
+          (DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS + 60),
+      })
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+    })
+
+    test('skips rule cleanup when the subgraph head timestamp cannot be read', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      setCollectableAgreements([], { subgraphMetaUnreadable: true })
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+    })
+
+    test('keeps DIPS rule whose deployment is covered by an active accepted agreement', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      setCollectableAgreements([
+        {
+          id: testAgreementId,
+          allocationId: testAllocationId,
+          subgraphDeploymentId: testDeploymentId,
+          state: 'Accepted',
+          lastCollectionAt: '0',
+          endsAt: farFuture,
+          maxInitialTokens: '0',
+          maxOngoingTokensPerSecond: '0',
+          tokensPerSecond: '0',
+          tokensPerEntityPerSecond: '0',
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 1800,
+          canceledAt: '0',
+        },
+      ])
+      network.networkMonitor.subgraphDeployment = jest
+        .fn()
+        .mockResolvedValue(mockSubgraphDeployment(testDeploymentId))
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+    })
+
+    test('treats agreement past endsAt as not active and removes its DIPS rule', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      const past = String(Math.floor(Date.now() / 1000) - 60)
+      setCollectableAgreements([
+        {
+          id: testAgreementId,
+          allocationId: testAllocationId,
+          subgraphDeploymentId: testDeploymentId,
+          state: 'Accepted',
+          lastCollectionAt: '0',
+          endsAt: past,
+          maxInitialTokens: '0',
+          maxOngoingTokensPerSecond: '0',
+          tokensPerSecond: '0',
+          tokensPerEntityPerSecond: '0',
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 1800,
+          canceledAt: '0',
+        },
+      ])
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).toBeNull()
+    })
+
+    describe('cancelAgreement', () => {
+      const mockAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 'Accepted',
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      beforeEach(() => {
+        // Track the agreement so we can verify cleanup
+        dipsManager.collectionTracker.track(mockAgreement.id, {
+          lastCollectedAt: 0,
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 300,
+        })
+
+        const getCollectionInfo = jest.fn().mockResolvedValue([true, 1000n, 0n])
+        network.contracts.RecurringCollector.getCollectionInfo =
+          getCollectionInfo as unknown as typeof network.contracts.RecurringCollector.getCollectionInfo
+      })
+
+      test('pre-cancel collect attempt + successful cancel', async () => {
+        const mockCollectReceipt = { hash: '0xcollect456' }
+        const mockReceipt = { hash: '0xcancel123' }
+
+        // Order: collect (best-effort, before cancel) then the SP cancel.
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockResolvedValueOnce(mockCollectReceipt) // collect (before cancel)
+          .mockResolvedValueOnce(mockReceipt) // cancel
+
+        // Mock block number and graph node methods for collect
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
+
+        expect(result).toBe(true)
+        // executeTransaction called twice: once for collect, once for cancel
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(2)
+        // Tracker should be cleaned up (untracked = ready)
+        expect(
+          dipsManager.collectionTracker.isReadyForCollection(mockAgreement.id, 0),
+        ).toBe(true)
+      })
+
+      test('cancel fails returns false (after the pre-cancel collect attempt)', async () => {
+        const mockCollectReceipt = { hash: '0xcollect456' }
+
+        // Collect (before cancel) succeeds, then the on-chain cancel reverts.
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockResolvedValueOnce(mockCollectReceipt) // collect (before cancel)
+          .mockRejectedValueOnce(new Error('cancel tx reverted')) // cancel
+
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
+
+        expect(result).toBe(false)
+        // collect attempted first, then the failing cancel
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(2)
+      })
+
+      test('pre-cancel collect fails but cancel succeeds returns true, tracker cleaned up', async () => {
+        const mockReceipt = { hash: '0xcancel123' }
+
+        // Collect (before cancel) reverts — outside the collection window — then
+        // the SP cancel succeeds anyway.
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockRejectedValueOnce(new Error('collect failed')) // collect (before cancel)
+          .mockResolvedValueOnce(mockReceipt) // cancel succeeds
+
+        // Mock block number and graph node methods
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
+
+        expect(result).toBe(true)
+        // Tracker should be cleaned up even though the pre-cancel collect failed
+        expect(
+          dipsManager.collectionTracker.isReadyForCollection(mockAgreement.id, 0),
+        ).toBe(true)
+      })
+
+      test('CanceledByPayer skips on-chain cancel and only runs final collect', async () => {
+        const canceledByPayer = { ...mockAgreement, state: 'CanceledByPayer' as const }
+        const mockCollectReceipt = { hash: '0xcollect456' }
+
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockResolvedValueOnce(mockCollectReceipt) // only collect, no cancel
+
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(
+          canceledByPayer.id,
+          canceledByPayer,
+        )
+
+        expect(result).toBe(true)
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+      })
+
+      test('CanceledByPayer with failing final collect still returns true', async () => {
+        const canceledByPayer = { ...mockAgreement, state: 'CanceledByPayer' as const }
+
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockRejectedValueOnce(new Error('collect failed'))
+
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(
+          canceledByPayer.id,
+          canceledByPayer,
+        )
+
+        expect(result).toBe(true)
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+        expect(
+          dipsManager.collectionTracker.isReadyForCollection(canceledByPayer.id, 0),
+        ).toBe(true)
+      })
+    })
+
+    describe('cleanupFinishedAgreement', () => {
+      const baseAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 'Accepted',
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      beforeEach(() => {
+        dipsManager.collectionTracker.track(baseAgreement.id, {
+          lastCollectedAt: 0,
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 300,
+        })
+      })
+
+      test('removes payer-cancelled agreement from tracker after collection', () => {
+        const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
+        const agreement = { ...baseAgreement, state: 'CanceledByPayer' as const }
+
+        const result = dipsManager.cleanupFinishedAgreement(agreement, 1000, logger)
+
+        expect(result).toBe(true)
+        expect(removeSpy).toHaveBeenCalledWith(agreement.id)
+      })
+
+      test('removes expired agreement from tracker after collection', () => {
+        const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
+        const nowSeconds = 2000
+        const agreement = { ...baseAgreement, state: 'Accepted' as const, endsAt: '1000' }
+
+        const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
+
+        expect(result).toBe(true)
+        expect(removeSpy).toHaveBeenCalledWith(agreement.id)
+      })
+
+      test('does not remove active agreement from tracker', () => {
+        const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
+        const nowSeconds = 1000
+        const agreement = {
+          ...baseAgreement,
+          state: 'Accepted' as const,
+          endsAt: '9999999999',
+        }
+
+        const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
+
+        expect(result).toBe(false)
+        expect(removeSpy).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('cancelBlocklistedAgreements', () => {
+      const mockAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 'Accepted',
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      test('cancels agreements with NEVER rule for their deployment', async () => {
+        // Create a NEVER rule for the test deployment
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.NEVER,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).toHaveBeenCalledTimes(1)
+        expect(cancelSpy).toHaveBeenCalledWith(mockAgreement.id, mockAgreement)
+      })
+
+      test('cancels agreements with OFFCHAIN rule for their deployment', async () => {
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).toHaveBeenCalledTimes(1)
+        expect(cancelSpy).toHaveBeenCalledWith(mockAgreement.id, mockAgreement)
+      })
+
+      test('does not cancel agreements without NEVER or OFFCHAIN rule', async () => {
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).not.toHaveBeenCalled()
+      })
+
+      test('skips CanceledByPayer agreements even when a NEVER rule exists', async () => {
+        // Reproduces the bug where the payer canceled on-chain first
+        // (via dipper) and the agent's own NEVER rule for the closed
+        // allocation would otherwise route the agreement back through
+        // cancelAgreement, which would attempt a redundant on-chain
+        // cancel and skip the final collection.
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.NEVER,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        const canceledByPayer: SubgraphIndexingAgreement = {
+          ...mockAgreement,
+          state: 'CanceledByPayer',
+        }
+
+        await dipsManager.cancelBlocklistedAgreements([canceledByPayer])
+
+        expect(cancelSpy).not.toHaveBeenCalled()
+      })
+    })
+  })
+})

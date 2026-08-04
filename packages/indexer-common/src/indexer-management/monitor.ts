@@ -18,7 +18,6 @@ import {
   resolveChainId,
   resolveChainAlias,
   sequentialTimerReduce,
-  HorizonTransitionValue,
   Provision,
   parseGraphQLProvision,
   POIData,
@@ -55,7 +54,61 @@ export class NetworkMonitor {
     private networkSubgraph: SubgraphClient,
     private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
+    private indexingPaymentsSubgraph?: SubgraphClient,
   ) {}
+
+  async hasCollectableDipsAgreement(allocationId: string): Promise<boolean> {
+    // No DIPS subgraph configured → no agreement can exist
+    if (!this.indexingPaymentsSubgraph) {
+      return false
+    }
+    const result = await this.indexingPaymentsSubgraph.checkedQuery(
+      gql`
+        query indexingAgreements($allocationId: Bytes!) {
+          indexingAgreements(
+            where: { allocationId: $allocationId, state_in: [Accepted, CanceledByPayer] }
+          ) {
+            id
+            state
+          }
+        }
+      `,
+      { allocationId: allocationId.toLowerCase() },
+    )
+    const agreements: { id: string; state: string }[] =
+      result.data?.indexingAgreements ?? []
+
+    // Any still-active agreement protects the allocation outright.
+    if (agreements.some((agreement) => agreement.state === 'Accepted')) {
+      return true
+    }
+
+    // For payer-canceled agreements, defer to the on-chain collector: it reports
+    // fees as collectable until the collection window is fully drained. Protect
+    // while anything remains; release once drained so the allocation can close.
+    for (const agreement of agreements.filter(
+      (agreement) => agreement.state === 'CanceledByPayer',
+    )) {
+      try {
+        const [isCollectable] = await this.contracts.RecurringCollector.getCollectionInfo(
+          agreement.id,
+        )
+        if (isCollectable) {
+          return true
+        }
+      } catch (err) {
+        // Can't confirm the agreement is drained → keep protecting (fail safe);
+        // closing now would risk stranding uncollected fees.
+        this.logger.warn(
+          'Could not read DIPS collection info; keeping allocation protected',
+          { allocationId, agreementId: agreement.id, err },
+        )
+        return true
+      }
+    }
+
+    return false
+  }
 
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
@@ -65,87 +118,59 @@ export class NetworkMonitor {
     return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
-  // Maximum allocation duration is different for legacy and horizon allocations
-  // - Legacy allocations - expiration measured in epochs, determined by maxAllocationEpochs
-  // - Horizon allocations - expiration measured in seconds, determined by maxPOIStaleness.
-  // To simplify the agent logic, this function converts horizon allocation values, returning epoch values
-  // regardless of the allocation type.
-  async maxAllocationDuration(): Promise<HorizonTransitionValue> {
-    const isHorizon = await this.isHorizon()
+  // Read the chain block alongside the epoch so a reconcile pass can log where its epoch
+  // came from; the block is provenance only, the epoch is what every decision then uses.
+  async currentEpochNumberWithProvenance(): Promise<{
+    epoch: number
+    readAtBlock: number
+  }> {
+    const readAtBlock = await this.ethereum.getBlockNumber()
+    const epoch = Number(await this.contracts.EpochManager.currentEpoch())
+    return { epoch, readAtBlock }
+  }
 
-    if (isHorizon) {
-      // TODO HORIZON: this assumes a block time of 12 seconds which is true for current protocol chain but not always
-      const BLOCK_IN_SECONDS = 12n
-      const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
-      const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+  // One epoch in seconds, the single place that turns the on-chain epoch length (in
+  // blocks) into wall-clock time for the seconds<->epochs conversions callers need.
+  // TODO HORIZON: assumes a 12s block time, true for the current protocol chain but not always.
+  async epochLengthInSeconds(): Promise<number> {
+    const BLOCK_IN_SECONDS = 12n
+    const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+    return Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+  }
 
-      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
-      // incurs in a severe penalty (missing out on indexing rewards)
-      const horizonDurationInSeconds = Number(
-        await this.contracts.SubgraphService.maxPOIStaleness(),
-      )
-      const horizonDurationInEpochs = Math.max(
-        1,
-        Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1,
-      )
+  // Maximum allocation duration is measured in seconds, determined by maxPOIStaleness.
+  // This function converts the value to epochs.
+  async maxAllocationDuration(): Promise<number> {
+    const epochLengthInSeconds = await this.epochLengthInSeconds()
 
-      return {
-        // Hardcoded to the latest known value. This is required to check for legacy allo expiration during the transition period.
-        // - Arbitrum One: 28
-        // - Arbitrum Sepolia: 8
-        // - Local Network: 4
-        legacy: 28,
-        horizon: horizonDurationInEpochs,
-      }
-    } else {
-      return {
-        legacy: Number(await this.contracts.LegacyStaking.maxAllocationEpochs()),
-        horizon: 0,
-      }
-    }
+    // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
+    // incurs in a severe penalty (missing out on indexing rewards)
+    const horizonDurationInSeconds = Number(
+      await this.contracts.SubgraphService.maxPOIStaleness(),
+    )
+    return Math.max(1, Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1)
   }
 
   /**
    * Returns the amount of free stake for the indexer.
    *
-   * The free stake is the amount of tokens that the indexer can use to stake in
-   * new allocations.
-   *
-   * Horizon: It's calculated as the difference between the tokens
-   * available in the provision and the tokens already locked allocations.
-   *
-   * Legacy: It's given by the indexer's stake capacity.
+   * It's calculated as the difference between the tokens available in the provision
+   * and the tokens already locked in allocations.
    *
    * @returns The amount of free stake for the indexer.
    */
-  async freeStake(): Promise<HorizonTransitionValue<bigint, bigint>> {
-    const isHorizon = await this.isHorizon()
-
-    if (isHorizon) {
-      const address = this.indexerOptions.address
-      const dataService = this.contracts.SubgraphService.target.toString()
-      const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
-      const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
-        address,
-        dataService,
-        delegationRatio,
-      )
-      const lockedStake =
-        await this.contracts.SubgraphService.allocationProvisionTracker(address)
-      const freeStake = tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
-
-      return {
-        legacy: 0n, // In horizon new legacy allocations cannot be created so we return 0
-        horizon: freeStake,
-      }
-    } else {
-      return {
-        legacy: await this.contracts.LegacyStaking.getIndexerCapacity(
-          this.indexerOptions.address,
-        ),
-        horizon: 0n,
-      }
-    }
+  async freeStake(): Promise<bigint> {
+    const address = this.indexerOptions.address
+    const dataService = this.contracts.SubgraphService.target.toString()
+    const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
+    const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
+      address,
+      dataService,
+      delegationRatio,
+    )
+    const lockedStake =
+      await this.contracts.SubgraphService.allocationProvisionTracker(address)
+    return tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
   }
 
   /**
@@ -156,10 +181,8 @@ export class NetworkMonitor {
    * @returns network `alias` if the network is supported, `null` otherwise
    */
   async allocationNetworkAlias(allocation: Allocation): Promise<string | null> {
-    // TODO:
-    // resolveChainId will throw an Error when we can't resolve the chainId in
-    // the future, let's get this from the epoch subgraph (perhaps at startup)
-    // and then resolve it here.
+    // TODO: resolveChainId will throw when we can't resolve the chainId; in the future
+    // get this from the epoch subgraph (perhaps at startup) and resolve it here.
     try {
       const { network: allocationNetworkAlias } = await this.graphNode.subgraphFeatures(
         allocation.subgraphDeployment.id,
@@ -252,6 +275,9 @@ export class NetworkMonitor {
                 closedAt
                 closedAtEpoch
                 createdAtBlockHash
+                pois(first: 1, orderBy: submittedAtEpoch, orderDirection: desc) {
+                  submittedAtEpoch
+                }
                 subgraphDeployment {
                   id
                   stakedTokens
@@ -647,7 +673,7 @@ export class NetworkMonitor {
     return subgraphs
   }
 
-  async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment | undefined> {
+  async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment> {
     try {
       const result = await this.networkSubgraph.checkedQuery(
         gql`
@@ -684,7 +710,14 @@ export class NetworkMonitor {
         this.logger.warn(
           `SubgraphDeployment with ipfsHash = ${ipfsHash} not found on chain`,
         )
-        return undefined
+        return {
+          id: new SubgraphDeploymentID(ipfsHash),
+          deniedAt: 1, // We assume the deployment won't be eligible for rewards if it's not found
+          stakedTokens: 0n,
+          signalledTokens: 0n,
+          queryFeesAmount: 0n,
+          protocolNetwork: this.networkCAIPID,
+        }
       }
 
       return parseGraphQLSubgraphDeployment(
@@ -929,7 +962,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       } else {
         this.logger.error(`Failed to query latest epoch number`, {
           err,
-          msg: err.message,
+          errorMessage: err.message,
           networkID,
           networkAlias,
         })
@@ -987,35 +1020,26 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       force,
     )
 
-    if (allocation.isLegacy) {
-      return {
-        poi: resolvedPOI,
-        publicPOI: hexlify(new Uint8Array(32).fill(0)),
-        blockNumber: 0,
-        indexingStatus: IndexingStatusCode.Unknown,
-      }
-    } else {
-      const resolvedBlockNumber = await this._resolvePOIBlockNumber(
-        blockNumber,
-        resolvedPOIBlockNumber,
-        force,
-      )
-      const resolvedPublicPOI = await this._resolvePublicPOI(
-        allocation,
-        publicPOI,
-        resolvedBlockNumber,
-        force,
-      )
-      const resolvedIndexingStatus = await this._resolveIndexingStatus(
-        allocation.subgraphDeployment.id,
-      )
+    const resolvedBlockNumber = await this._resolvePOIBlockNumber(
+      blockNumber,
+      resolvedPOIBlockNumber,
+      force,
+    )
+    const resolvedPublicPOI = await this._resolvePublicPOI(
+      allocation,
+      publicPOI,
+      resolvedBlockNumber,
+      force,
+    )
+    const resolvedIndexingStatus = await this._resolveIndexingStatus(
+      allocation.subgraphDeployment.id,
+    )
 
-      return {
-        poi: resolvedPOI,
-        publicPOI: resolvedPublicPOI,
-        blockNumber: resolvedBlockNumber,
-        indexingStatus: resolvedIndexingStatus,
-      }
+    return {
+      poi: resolvedPOI,
+      publicPOI: resolvedPublicPOI,
+      blockNumber: resolvedBlockNumber,
+      indexingStatus: resolvedIndexingStatus,
     }
   }
 
@@ -1108,34 +1132,6 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           : `No operator status for indexer`,
       )
       return isOperator
-    })
-  }
-
-  async monitorIsHorizon(
-    logger: Logger,
-    interval: number = 300_000,
-  ): Promise<Eventual<boolean>> {
-    return sequentialTimerReduce(
-      {
-        logger,
-        milliseconds: interval,
-      },
-      async (isHorizon) => {
-        try {
-          logger.debug('Check if network is Horizon ready')
-          return await this.isHorizon()
-        } catch (err) {
-          logger.warn(
-            `Failed to check if network is Horizon ready, assuming it has not changed`,
-            { err: indexerError(IndexerErrorCode.IE008, err), isHorizon },
-          )
-          return isHorizon
-        }
-      },
-      await this.isHorizon(),
-    ).map((isHorizon) => {
-      logger.info(isHorizon ? `Network is Horizon ready` : `Network is not Horizon ready`)
-      return isHorizon
     })
   }
 
@@ -1384,28 +1380,12 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
   }
 
-  private async isHorizon() {
-    try {
-      const maxThawingPeriod = await this.contracts.HorizonStaking.getMaxThawingPeriod()
-      return maxThawingPeriod > 0
-    } catch (err) {
-      return false
-    }
-  }
-
   private async isOperator(operatorAddress: string, indexerAddress: string) {
-    if (await this.isHorizon()) {
-      return await this.contracts.HorizonStaking.isAuthorized(
-        indexerAddress,
-        this.contracts.SubgraphService.target,
-        operatorAddress,
-      )
-    } else {
-      return await this.contracts.LegacyStaking.isOperator(
-        operatorAddress,
-        indexerAddress,
-      )
-    }
+    return await this.contracts.HorizonStaking.isAuthorized(
+      indexerAddress,
+      this.contracts.SubgraphService.target,
+      operatorAddress,
+    )
   }
 
   // Returns a tuple of [POI, blockNumber]
@@ -1423,10 +1403,9 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return [hexlify(new Uint8Array(32).fill(0)), 0]
     }
 
-    // poi = undefined, force=true  -- submit even if poi is 0x0
-    // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
-    // poi = undefined, force=false -- submit with generated POI if one available
-    // poi = defined,   force=false -- submit user defined POI only if generated POI matches
+    // force=true:  poi undefined -> submit even if 0x0;  poi defined -> submit the supplied POI
+    // force=false: poi undefined -> submit a generated POI if available;  poi defined -> submit the
+    //              user POI only if it matches the generated POI
     switch (force) {
       case true:
         switch (!!poi) {

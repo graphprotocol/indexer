@@ -4,9 +4,9 @@ import { parseGRT } from '@graphprotocol/common-ts'
 import { validateNetworkIdentifier } from './parsers'
 
 export const parseDecisionBasis = (s: string): IndexingDecisionBasis => {
-  if (!['always', 'never', 'rules', 'offchain'].includes(s)) {
+  if (!['always', 'never', 'rules', 'offchain', 'dips'].includes(s)) {
     throw new Error(
-      `Unknown decision basis "${s}". Supported: always, never, rules, offchain`,
+      `Unknown decision basis "${s}". Supported: always, never, rules, offchain, dips`,
     )
   } else {
     return s as IndexingDecisionBasis

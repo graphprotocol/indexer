@@ -9,6 +9,7 @@ import {
 import {
   createIndexerManagementClient,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   IndexerManagementClient,
   IndexerManagementModels,
   GraphNode,
@@ -131,6 +132,7 @@ const setup = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
   sequelize = await sequelize.sync({ force: true })
 
   graphNode = new GraphNode(
@@ -148,6 +150,7 @@ const setup = async () => {
   const network = await Network.create(
     logger,
     networkSpecification,
+    models,
     queryFeeModels,
     graphNode,
     metrics,
@@ -169,6 +172,7 @@ const setup = async () => {
       },
     },
     multiNetworks,
+    pendingRcaModel,
   })
 
   operator = new Operator(logger, indexerManagementClient, networkSpecification)

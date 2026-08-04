@@ -89,10 +89,6 @@ export async function buildActionInput(
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
 
-  // TODO HORIZON: we could check isHorizon status here to set the proper value for isLegacy, but it requires multiNetworks
-  // The IndexerManagementServer will set the correct value anyways
-  const isLegacy = false
-
   switch (type) {
     case ActionType.ALLOCATE:
       return {
@@ -104,7 +100,6 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
-        isLegacy,
       }
     case ActionType.UNALLOCATE: {
       const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
@@ -125,30 +120,6 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
-        isLegacy,
-      }
-    }
-    case ActionType.REALLOCATE: {
-      const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
-        actionParams.param3,
-        actionParams.param6,
-        actionParams.param5,
-      )
-      return {
-        deploymentID: actionParams.targetDeployment,
-        allocationID: actionParams.param1,
-        amount: actionParams.param2?.toString(),
-        poi,
-        publicPOI,
-        poiBlockNumber,
-        force: actionParams.param4 === 'true',
-        type,
-        source,
-        reason,
-        status,
-        priority,
-        protocolNetwork,
-        isLegacy,
       }
     }
     case ActionType.PRESENT_POI: {
@@ -171,7 +142,6 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
-        isLegacy,
       }
     }
     case ActionType.RESIZE: {
@@ -186,9 +156,10 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
-        isLegacy,
       }
     }
+    default:
+      throw new Error(`Unknown ActionType: ${type}`)
   }
 }
 
@@ -203,9 +174,6 @@ export async function validateActionInput(
       break
     case ActionType.UNALLOCATE:
       requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
-      break
-    case ActionType.REALLOCATE:
-      requiredFields = requiredFields.concat(['targetDeployment', 'param1', 'param2'])
       break
     case ActionType.PRESENT_POI:
       requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
@@ -303,7 +271,6 @@ export async function queueActions(
             priority
             status
             protocolNetwork
-            isLegacy
           }
         }
       `,
@@ -331,7 +298,6 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
   protocolNetwork: x => validateNetworkIdentifier(x),
-  isLegacy: x => parseBoolean(x),
 }
 
 const ACTION_CONVERTERS_TO_GRAPHQL: Record<
@@ -350,7 +316,6 @@ const ACTION_CONVERTERS_TO_GRAPHQL: Record<
   status: x => x,
   reason: x => x,
   protocolNetwork: x => x,
-  isLegacy: x => x,
 }
 
 /**
@@ -409,7 +374,6 @@ export async function executeApprovedActions(
             reason
             transaction
             failureReason
-            isLegacy
           }
         }
       `,
@@ -448,7 +412,6 @@ export async function approveActions(
             transaction
             status
             protocolNetwork
-            isLegacy
           }
         }
       `,
@@ -487,7 +450,6 @@ export async function cancelActions(
             priority
             transaction
             status
-            isLegacy
           }
         }
       `,
@@ -526,7 +488,6 @@ export async function fetchAction(
             priority
             transaction
             status
-            isLegacy
           }
         }
       `,
@@ -579,7 +540,6 @@ export async function fetchActions(
             transaction
             status
             failureReason
-            isLegacy
           }
         }
       `,
@@ -619,7 +579,6 @@ export async function deleteActions(
             transaction
             status
             failureReason
-            isLegacy
           }
         }
       `,
@@ -660,7 +619,6 @@ export async function updateActions(
             status
             failureReason
             protocolNetwork
-            isLegacy
           }
         }
       `,

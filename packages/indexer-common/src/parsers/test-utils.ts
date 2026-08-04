@@ -28,11 +28,7 @@ export function loadTestYamlConfig() {
 
   const yamlObj = readYamlFile(networkSpecFile)
   injectProviderUrl(testProviderUrl, yamlObj)
-  injectApiKey(
-    INDEXER_TEST_API_KEY,
-    ['networkSubgraph', 'epochSubgraph', 'tapSubgraph'],
-    yamlObj,
-  )
+  injectApiKey(INDEXER_TEST_API_KEY, ['networkSubgraph', 'epochSubgraph'], yamlObj)
 
   return yamlObj
 }

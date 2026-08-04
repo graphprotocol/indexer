@@ -24,6 +24,7 @@ import {
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
+import { PendingRcaProposal } from './models/pending-rca-proposal'
 
 export class ActionManager {
   declare multiNetworks: MultiNetworks<Network>
@@ -38,6 +39,7 @@ export class ActionManager {
     logger: Logger,
     models: IndexerManagementModels,
     graphNode: GraphNode,
+    pendingRcaModel: typeof PendingRcaProposal,
   ): Promise<ActionManager> {
     const actionManager = new ActionManager()
     actionManager.multiNetworks = multiNetworks
@@ -52,6 +54,7 @@ export class ActionManager {
         models,
         graphNode,
         network,
+        pendingRcaModel,
       )
     })
 
@@ -97,11 +100,7 @@ export class ActionManager {
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
         const currentEpoch = await network.networkMonitor.currentEpochNumber()
         affectedAllocationExpiring =
-          currentEpoch >=
-          affectedAllocations[0].createdAtEpoch +
-            (affectedAllocations[0].isLegacy
-              ? maxAllocationDuration.legacy
-              : maxAllocationDuration.horizon)
+          currentEpoch >= affectedAllocations[0].createdAtEpoch + maxAllocationDuration
       }
 
       logger.debug(
@@ -313,10 +312,8 @@ export class ActionManager {
         try {
           // Execute already approved actions in the order of type and priority.
           // Unallocate actions are prioritized to free up stake that can be used
-          // in subsequent reallocate and allocate actions.
-          // Reallocate actions are prioritized before allocate as they are for
-          // existing syncing deployments with relatively smaller changes made.
-          const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
+          // in subsequent allocate actions.
+          const actionTypePriority = ['unallocate', 'allocate']
           approvedAndDeployingActions = (
             await this.models.Action.findAll({
               where: {

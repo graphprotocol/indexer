@@ -23,7 +23,7 @@ ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
   -n, --network                                                     Filter by protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
-      --type    allocate|unallocate|reallocate|collect              Filter by type
+      --type    allocate|unallocate|collect                         Filter by type
       --status  queued|approved|pending|success|failed|canceled     Filter by status
       --source <source>                                             Fetch only actions queued by a specific source
       --reason <reason>                                             Fetch only actions queued for a specific reason
@@ -52,7 +52,6 @@ const actionFields: (keyof Action)[] = [
   'failureReason',
   'transaction',
   'reason',
-  'isLegacy',
 ]
 
 /// Validates input for the `--fieds` option.

@@ -37,8 +37,6 @@ export class Action extends Model<
 
   declare protocolNetwork: string
 
-  declare isLegacy: boolean
-
   declare publicPOI: string | null
   declare poiBlockNumber: number | null
 
@@ -65,7 +63,6 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         type: DataTypes.ENUM(
           ActionType.ALLOCATE,
           ActionType.UNALLOCATE,
-          ActionType.REALLOCATE,
           ActionType.PRESENT_POI,
           ActionType.RESIZE,
         ),
@@ -159,11 +156,6 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
           is: caip2IdRegex,
         },
       },
-      isLegacy: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: true,
-      },
       publicPOI: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -190,17 +182,6 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
               if (this.deploymentID === null || this.allocationID === null) {
                 throw new Error(
                   `ActionType.UNALLOCATE action must have required params: ['deploymentID','allocationID']`,
-                )
-              }
-              break
-            case ActionType.REALLOCATE:
-              if (
-                this.deploymentID === null ||
-                this.allocationID === null ||
-                this.amount === null
-              ) {
-                throw new Error(
-                  `ActionType.REALLOCATE action must have required params: ['deploymentID','allocationID', 'amount]`,
                 )
               }
               break

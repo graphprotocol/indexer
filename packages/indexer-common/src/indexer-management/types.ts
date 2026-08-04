@@ -37,18 +37,6 @@ export interface CloseAllocationResult {
   protocolNetwork: string
 }
 
-export interface ReallocateAllocationResult {
-  actionID: number
-  type: 'reallocate'
-  transactionID: string | undefined
-  secondTransactionID?: string
-  closedAllocation: string
-  indexingRewardsCollected: string
-  createdAllocation: string
-  createdAllocationStake: string
-  protocolNetwork: string
-}
-
 export interface PresentPOIResult {
   actionID: number
   type: 'presentPOI'
@@ -96,15 +84,6 @@ export const isPartialActionFailure = (
   variableToCheck: any,
 ): variableToCheck is Partial<ActionFailure> => 'failureReason' in variableToCheck
 
-export function isTransactionReceiptArray(
-  arr: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[],
-): arr is TransactionReceipt[] {
-  return arr.every(
-    (r): r is TransactionReceipt =>
-      r !== 'paused' && r !== 'unauthorized' && !isActionFailure(r),
-  )
-}
-
 export const isActionFailureArray = (
   variableToCheck: any,
 ): variableToCheck is ActionFailure[] =>
@@ -113,7 +92,6 @@ export const isActionFailureArray = (
 export type AllocationResult =
   | CreateAllocationResult
   | CloseAllocationResult
-  | ReallocateAllocationResult
   | PresentPOIResult
   | ResizeAllocationResult
   | ActionFailure
@@ -161,6 +139,7 @@ export const parseGraphQLAllocation = (
   poi: allocation.poi,
   queryFeeRebates: allocation.queryFeeRebates,
   queryFeesCollected: allocation.queryFeesCollected,
+  lastPresentedPoiEpoch: allocation.pois?.[0]?.submittedAtEpoch,
 })
 
 export const parseGraphQLProvision = (provision: any): Provision => ({

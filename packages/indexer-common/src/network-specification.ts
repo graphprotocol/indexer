@@ -57,6 +57,7 @@ export const IndexerOptions = z
     voucherRedemptionBatchThreshold: GRT().default(5),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
     ravCollectionMaxBatchSize: positiveNumber().default(50),
+    ravCheckInterval: positiveNumber().default(900),
     allocationManagementMode: z
       .enum(ALLOCATION_MANAGEMENT_MODE)
       .default('auto')
@@ -71,7 +72,13 @@ export const IndexerOptions = z
       })
       .default(0),
     finalityTime: positiveNumber().default(3600),
-    legacyMnemonics: z.array(z.string()).default([]),
+    enableDips: z.boolean().default(false),
+    dipsAllocationAmount: GRT().default(0),
+    ravCollectionInterval: positiveNumber().default(14400),
+    dipsEpochsMargin: positiveNumber().default(1),
+    dipsCollectionTarget: positiveNumber().min(1).max(90).default(50),
+    dipsCollectionSlippage: z.number().nonnegative().max(100).finite().default(1),
+    dipsAcceptanceInterval: positiveNumber().default(5),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
@@ -145,7 +152,7 @@ export const ProtocolSubgraphs = z
     freshnessSleepMilliseconds: positiveNumber().default(10_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
-    tapSubgraph: OptionalSubgraph,
+    indexingPaymentsSubgraph: OptionalSubgraph,
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
@@ -155,24 +162,6 @@ export const ProtocolSubgraphs = z
     path: ['epochSubgraph', 'url'],
   })
 export type ProtocolSubgraphs = z.infer<typeof ProtocolSubgraphs>
-
-export const TapContracts = z
-  .record(
-    z.string(),
-    z.object({
-      TAPVerifier: z.string().refine((val) => isAddress(val), {
-        message: 'Invalid contract address',
-      }),
-      AllocationIDTracker: z.string().refine((val) => isAddress(val), {
-        message: 'Invalid contract address',
-      }),
-      Escrow: z.string().refine((val) => isAddress(val), {
-        message: 'Invalid contract address',
-      }),
-    }),
-  )
-  .optional()
-export type TapContracts = z.infer<typeof TapContracts>
 
 export const NetworkProvider = z
   .object({
@@ -193,7 +182,6 @@ export const NetworkSpecification = z
     networkProvider: NetworkProvider,
     horizonAddressBook: z.string().optional(),
     subgraphServiceAddressBook: z.string().optional(),
-    tapAddressBook: TapContracts.optional(),
     allocationSyncInterval: positiveNumber().default(120000),
   })
   .strict()

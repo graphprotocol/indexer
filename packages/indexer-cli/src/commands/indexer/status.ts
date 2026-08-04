@@ -30,7 +30,6 @@ interface Endpoint {
   healthy: boolean
   protocolNetwork: string
   tests: any[]
-  isLegacy: boolean
 }
 
 interface Endpoints {
@@ -82,7 +81,6 @@ module.exports = {
                   latitude
                   longitude
                 }
-                isLegacy
               }
 
               indexerDeployments {
@@ -130,7 +128,6 @@ module.exports = {
                     error
                     possibleActions
                   }
-                  isLegacy
                 }
                 status {
                   name
@@ -142,7 +139,6 @@ module.exports = {
                     error
                     possibleActions
                   }
-                  isLegacy
                 }
               }
 
@@ -215,7 +211,6 @@ module.exports = {
             tests: service.tests,
             protocolNetwork: resolveChainAlias(service.protocolNetwork),
             status: formatStatus(outputFormat, service.healthy),
-            isLegacy: service.isLegacy,
           },
           {
             name: status.name,
@@ -223,7 +218,6 @@ module.exports = {
             tests: status.tests,
             protocolNetwork: resolveChainAlias(status.protocolNetwork),
             status: formatStatus(outputFormat, status.healthy),
-            isLegacy: status.isLegacy,
           },
         ]
       })
@@ -270,7 +264,6 @@ module.exports = {
               'address',
               'protocolNetwork',
               'registered',
-              'isLegacy',
               'location',
             ]),
           ),
@@ -284,13 +277,7 @@ module.exports = {
         print.info(
           formatData(
             data.endpoints.map((endpoint: any) =>
-              pickFields(endpoint, [
-                'name',
-                'protocolNetwork',
-                'url',
-                'status',
-                'isLegacy',
-              ]),
+              pickFields(endpoint, ['name', 'protocolNetwork', 'url', 'status']),
             ),
             outputFormat,
           ),

@@ -22,7 +22,6 @@ export interface ActionItem {
   reason: string
   status?: ActionStatus
   protocolNetwork: string
-  isLegacy?: boolean
 }
 
 export interface ActionUpdateInput {
@@ -37,7 +36,6 @@ export interface ActionUpdateInput {
   status?: ActionStatus
   reason?: string
   protocolNetwork?: string
-  isLegacy?: boolean
 }
 
 export interface ActionInput {
@@ -54,27 +52,18 @@ export interface ActionInput {
   status: ActionStatus
   priority: number | undefined
   protocolNetwork: string
-  isLegacy: boolean
 }
 
 const ZERO_POI = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
-// Validates POI-related fields for non-legacy actions.
-// When POI is zero, publicPOI and poiBlockNumber are optional.
-// When POI is non-zero, all three fields are required.
+// Zero POI is a sentinel for "no POI to submit", so publicPOI and poiBlockNumber
+// are optional then (and when POI is omitted); a real POI requires both.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const hasValidPOIParams = (variableToCheck: any): boolean => {
-  if (variableToCheck.isLegacy || variableToCheck.poi === undefined) {
+  if (variableToCheck.poi === undefined || variableToCheck.poi === ZERO_POI) {
     return true
   }
-  if (variableToCheck.poi === ZERO_POI) {
-    return 'poi' in variableToCheck
-  }
-  return (
-    'poi' in variableToCheck &&
-    'publicPOI' in variableToCheck &&
-    'poiBlockNumber' in variableToCheck
-  )
+  return 'publicPOI' in variableToCheck && 'poiBlockNumber' in variableToCheck
 }
 
 export const isValidActionInput = (
@@ -93,13 +82,6 @@ export const isValidActionInput = (
       hasActionParams =
         'deploymentID' in variableToCheck &&
         'allocationID' in variableToCheck &&
-        hasValidPOIParams(variableToCheck)
-      break
-    case ActionType.REALLOCATE:
-      hasActionParams =
-        'deploymentID' in variableToCheck &&
-        'allocationID' in variableToCheck &&
-        'amount' in variableToCheck &&
         hasValidPOIParams(variableToCheck)
       break
     case ActionType.RESIZE:
@@ -122,6 +104,30 @@ export const isValidActionInput = (
     'status' in variableToCheck &&
     'priority' in variableToCheck
   )
+}
+
+// Closing an allocation that still owes DIPS fees cancels a live agreement
+// on-chain or strands fees a canceled agreement hasn't finished collecting,
+// so every close path shares this guard; force acknowledges the loss.
+export const assertSafeToCloseAllocation = async (
+  networkMonitor: NetworkMonitor,
+  allocationID: string,
+  force: boolean,
+  logger: Logger,
+): Promise<void> => {
+  const hasAgreement = await networkMonitor.hasCollectableDipsAgreement(allocationID)
+  if (hasAgreement && !force) {
+    throw new Error(
+      `Allocation ${allocationID} has a DIPS agreement that can still collect fees. ` +
+        `Closing it now would cancel a live agreement on-chain, or strand fees that a ` +
+        `canceled agreement has not finished collecting. Use force=true to proceed anyway.`,
+    )
+  }
+  if (hasAgreement && force) {
+    logger.warn('Force-closing allocation with a collectable DIPS agreement', {
+      allocationId: allocationID,
+    })
+  }
 }
 
 export const validateActionInputs = async (
@@ -177,14 +183,11 @@ export const validateActionInputs = async (
       )
     }
 
-    // Unallocate, reallocate, resize, and presentPOI actions must target an active allocationID
+    // Unallocate, resize, and presentPOI actions must target an active allocationID
     if (
-      [
-        ActionType.UNALLOCATE,
-        ActionType.REALLOCATE,
-        ActionType.RESIZE,
-        ActionType.PRESENT_POI,
-      ].includes(action.type)
+      [ActionType.UNALLOCATE, ActionType.RESIZE, ActionType.PRESENT_POI].includes(
+        action.type,
+      )
     ) {
       // allocationID must belong to active allocation
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -201,6 +204,15 @@ export const validateActionInputs = async (
           `Allocation specified (${action.allocationID}) is not associated with the deployment specified (${action.deploymentID})`,
         )
       }
+
+      if (action.type === ActionType.UNALLOCATE && action.allocationID) {
+        await assertSafeToCloseAllocation(
+          networkMonitor,
+          action.allocationID,
+          action.force ?? false,
+          logger,
+        )
+      }
     }
   }
 }
@@ -213,7 +225,6 @@ export interface ActionFilter {
   reason?: string
   updatedAt?: WhereOperators
   protocolNetwork?: string
-  isLegacy?: boolean
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -247,13 +258,11 @@ export interface ActionResult {
   failureReason: string | null
   transaction: string | null
   protocolNetwork: string
-  isLegacy: boolean
 }
 
 export enum ActionType {
   ALLOCATE = 'allocate',
   UNALLOCATE = 'unallocate',
-  REALLOCATE = 'reallocate',
   PRESENT_POI = 'presentPOI',
   RESIZE = 'resize',
 }
@@ -286,5 +295,4 @@ export enum ActionParams {
   CREATED_AT = 'createdAt',
   UPDATED_AT = 'updatedAt',
   PROTOCOL_NETWORK = 'protocolNetwork',
-  IS_LEGACY = 'isLegacy',
 }

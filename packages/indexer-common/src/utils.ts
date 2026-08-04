@@ -46,7 +46,7 @@ export async function monitorEthBalance(
   metrics: Metrics,
   networkIdentifier: string,
 ): Promise<void> {
-  logger = logger.child({ component: 'ETHBalanceMonitor' })
+  logger = logger.child({ subComponent: 'ETHBalanceMonitor' })
 
   logger.info('Monitor operator ETH balance (refreshes every 120s)')
 

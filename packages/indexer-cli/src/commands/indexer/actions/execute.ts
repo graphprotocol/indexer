@@ -82,7 +82,6 @@ module.exports = {
         'failureReason',
         'source',
         'reason',
-        'isLegacy',
       ])
     } catch (error) {
       spinner.fail(error.toString())

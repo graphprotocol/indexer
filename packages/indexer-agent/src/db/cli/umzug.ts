@@ -50,7 +50,7 @@ const sequelize = new Sequelize({
   logging: false,
 })
 
-logger.debug('Successfully connected to DB', { name: database })
+logger.debug('Successfully connected to DB', { database })
 
 export const migrator = new Umzug({
   migrations: {

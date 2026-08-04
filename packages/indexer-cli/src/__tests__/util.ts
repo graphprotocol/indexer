@@ -11,6 +11,7 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   defineQueryFeeModels,
   GraphNode,
   IndexerManagementClient,
@@ -90,6 +91,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
   metrics = createMetrics()
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
@@ -108,6 +110,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
   const network = await Network.create(
     logger,
     testNetworkSpecification,
+    models,
     queryFeeModels,
     graphNode,
     metrics,
@@ -138,6 +141,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
     logger,
     defaults,
     multiNetworks,
+    pendingRcaModel,
   })
 
   server = await createIndexerManagementServer({
@@ -294,7 +298,6 @@ export const seedActions = async () => {
       source: 'test',
       reason: 'test',
       protocolNetwork: 'eip155:421614',
-      isLegacy: false,
     })
     await models.Action.create({
       id: 2,
@@ -304,7 +307,6 @@ export const seedActions = async () => {
       source: 'test',
       reason: 'test',
       protocolNetwork: 'eip155:421614',
-      isLegacy: false,
     })
   } catch (e) {
     logger.error('Failed to seed ', { error: e })
