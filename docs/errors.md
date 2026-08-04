@@ -887,3 +887,17 @@ This is a sub-error of `IE069`. It is reported when the indexer agent doesn't ha
 **Solution**
 
 Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `sepolia`, `gnosis`) and is on or after version 0.28.0.
+
+## IE090
+
+**Summary**
+
+Failed to collect indexing rewards: indexer not eligible for rewards.
+
+**Description**
+
+The `collect` call for indexing rewards reverted because the indexer is currently ineligible for rewards, as determined by the rewards eligibility oracle. The revert happens at gas estimation, so no transaction is broadcast and no gas is spent; the indexer agent does not retry within the call, but the reconciliation loop will attempt the collect again on a later cycle.
+
+**Solution**
+
+No operator action is required if ineligibility is expected to clear: once the indexer becomes eligible again, a subsequent collect will succeed and the rewards remain claimable until the allocation goes stale. If the indexer is unexpectedly ineligible, investigate the rewards eligibility oracle status for this indexer address. The allocation can also still be closed without collecting rewards by presenting a zero POI (`0x0`).
