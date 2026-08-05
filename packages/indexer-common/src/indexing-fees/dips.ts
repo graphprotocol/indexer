@@ -36,6 +36,9 @@ import { OfferVerifier } from './offer-verifier'
 
 // POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
 const RECENT_BLOCK_OFFSET = 10
+// Margin between the clamped accept-delay and the deadline, so the first on-chain
+// attempt always lands with room to spare.
+const DIPS_ACCEPT_DEADLINE_MARGIN_SECONDS = 5n
 // Per-tick parallelism cap across distinct deployments. acceptPendingProposals
 // dedupes to one proposal per deployment, and the transaction manager serialises
 // nonce assignment, so concurrent processProposal calls are safe; the cap keeps
@@ -502,10 +505,9 @@ export class DipsManager {
       return
     }
 
-    // Create the dips rule eagerly here rather than leaving it to the reconcile
-    // loop: the accept tx can confirm and clear the pending row before the next
-    // reconcile tick, which would leave the rule uncreated and graph-node never
-    // told to deploy the subgraph.
+    // Create the dips rule as soon as the loop sees the pending row, independent
+    // of the on-chain offer, so graph-node starts syncing on the off-chain accept.
+    // ensureAgreementRules also creates it; the redundancy is deliberate (backstop).
     const tRule = process.hrtime.bigint()
     const allDeploymentRules = await this.models.IndexingRule.findAll({
       where: { identifierType: SubgraphIdentifierType.DEPLOYMENT },
@@ -531,6 +533,26 @@ export class DipsManager {
       ),
     })
     phases.ruleMs = elapsedMs(tRule)
+
+    // Defer the first on-chain accept by dipsOnChainAcceptDelay seconds, anchored
+    // on created_at (the off-chain-accept time), to let the payer's offer() tx land
+    // and cut wasted attempts. Clamped below the deadline so we never sit past it.
+    const createdAtSeconds = BigInt(Math.floor(proposal.createdAt.getTime() / 1000))
+    const configuredDelay = BigInt(
+      Math.floor(this.network.specification.indexerOptions.dipsOnChainAcceptDelay),
+    )
+    const maxDelay =
+      proposal.deadline - createdAtSeconds - DIPS_ACCEPT_DEADLINE_MARGIN_SECONDS
+    const effectiveDelay = maxDelay < configuredDelay ? maxDelay : configuredDelay
+    if (effectiveDelay > 0n && now - createdAtSeconds < effectiveDelay) {
+      this.logger.debug('Within on-chain accept delay window; leaving proposal pending', {
+        proposalId: proposal.id,
+        ageSeconds: (now - createdAtSeconds).toString(),
+        effectiveDelaySeconds: effectiveDelay.toString(),
+      })
+      logSummary('waiting_for_accept_delay')
+      return
+    }
 
     // Gate accept on the on-chain offer. Pre-flight the RCA offer via the
     // indexing-payments-subgraph so acceptIndexingAgreement doesn't revert when

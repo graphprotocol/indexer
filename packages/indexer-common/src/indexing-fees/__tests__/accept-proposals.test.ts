@@ -34,7 +34,9 @@ function createMockProposal(
   return {
     id: 'proposal-1',
     status: 'pending',
-    createdAt: new Date(),
+    // Default to the past so the accept-delay gate is already cleared; tests that
+    // exercise the delay window set a recent createdAt explicitly.
+    createdAt: new Date(Date.now() - 120 * 1000),
     updatedAt: new Date(),
     agreementId: '0xabcd1234567890abcdef1234567890ab',
     payer: '0x1111111111111111111111111111111111111111',
@@ -163,6 +165,10 @@ function createMockNetwork() {
         enableDips: true,
         dipsAllocationAmount: 0n,
         defaultAllocationAmount: 10000000000000000000n, // 10 GRT
+        // A valid positive default (0 is rejected at config load). createMockProposal
+        // defaults createdAt to the past, so the gate is already cleared for tests that
+        // don't exercise the delay window; delay-specific tests set createdAt explicitly.
+        dipsOnChainAcceptDelay: 5,
       },
       networkIdentifier: 'eip155:1337',
     },
@@ -731,10 +737,9 @@ describe('DipsManager.acceptPendingProposals', () => {
 
   describe('same-deployment dedup', () => {
     test('accepts one proposal per deployment per tick and rejects neither', async () => {
-      // Two proposals for the same deployment with no existing allocation.
-      // Without dedup both would derive the same allocation id and race to
-      // open it, getting one wrongly rejected; with dedup only the first is
-      // processed this tick and the other is left pending for the next.
+      // Two proposals for the same deployment with no existing allocation would
+      // both derive the same allocation id and race to open it, wrongly rejecting
+      // one; dedup processes only the first this tick, leaving the other pending.
       const proposalA = createMockProposal({
         id: 'proposal-a',
         agreementId: '0x' + 'a'.repeat(32),
@@ -758,6 +763,187 @@ describe('DipsManager.acceptPendingProposals', () => {
       expect(consumer.markAccepted).toHaveBeenCalledTimes(1)
       expect(consumer.markAccepted).toHaveBeenCalledWith('proposal-a')
       expect(consumer.markRejected).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('start syncing on off-chain accept, defer on-chain accept', () => {
+    test('upserts the DIPS rule before any offer is read', async () => {
+      // Within the delay window the on-chain accept hasn't run, yet the rule
+      // (graphNode.ensure path) must already exist so syncing starts.
+      const proposal = createMockProposal({ createdAt: new Date() })
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 60
+      const offerQuery = network.indexingPaymentsSubgraph!.query as jest.Mock
+      const graphNode = { ensure: jest.fn().mockResolvedValue(undefined) }
+      const dm = new DipsManager(
+        logger,
+        models,
+        network,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        graphNode as any,
+        createMockParent(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(dm as any).pendingRcaConsumer = consumer
+
+      await dm.acceptPendingProposals([])
+
+      expect(models.IndexingRule.upsert).toHaveBeenCalled()
+      expect(graphNode.ensure).toHaveBeenCalled()
+      // Deferred: offer not read and no on-chain attempt yet.
+      expect(offerQuery).not.toHaveBeenCalled()
+      expect(network.transactionManager.executeTransaction).not.toHaveBeenCalled()
+    })
+
+    test('does not attempt on-chain accept while within the delay window', async () => {
+      const proposal = createMockProposal({ createdAt: new Date() })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 60
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(network.transactionManager.executeTransaction).not.toHaveBeenCalled()
+      expect(consumer.markAccepted).not.toHaveBeenCalled()
+      expect(consumer.markRejected).not.toHaveBeenCalled()
+    })
+
+    test('attempts on-chain accept once older than the delay and offer is present', async () => {
+      const createdAt = new Date(Date.now() - 120 * 1000) // 2 minutes ago
+      const proposal = createMockProposal({ createdAt })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 60
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtx',
+        status: 1,
+      })
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
+    })
+
+    test('keeps the row pending (no accept/reject) when offer is not yet present', async () => {
+      const createdAt = new Date(Date.now() - 120 * 1000)
+      const proposal = createMockProposal({ createdAt })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 60
+      ;(network.indexingPaymentsSubgraph!.query as jest.Mock).mockResolvedValue({
+        data: { offer: null },
+      })
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(consumer.markAccepted).not.toHaveBeenCalled()
+      expect(consumer.markRejected).not.toHaveBeenCalled()
+    })
+
+    test('runs the deadline check before the delay gate', async () => {
+      // Deadline already passed: must be rejected 'deadline_expired' with its rule
+      // cleaned up, never held back by the delay gate.
+      const proposal = createMockProposal({
+        createdAt: new Date(),
+        deadline: BigInt(Math.floor(Date.now() / 1000) - 10),
+      })
+      const consumer = createMockConsumer([proposal])
+      ;(consumer.getPendingProposalsForDeployment as jest.Mock).mockResolvedValue([])
+      const mockRule = { id: 7 }
+      const models = createMockModels()
+      ;(models.IndexingRule.findOne as jest.Mock).mockResolvedValue(mockRule)
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 3600
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([])
+
+      expect(consumer.markRejected).toHaveBeenCalledWith(proposal.id, 'deadline_expired')
+      expect(models.IndexingRule.destroy).toHaveBeenCalledWith({ where: { id: 7 } })
+      expect(network.transactionManager.executeTransaction).not.toHaveBeenCalled()
+    })
+
+    test('accepting twice on the same pending row does not double-accept', async () => {
+      // Restart idempotency: once markAccepted moves the row out of pending, a
+      // second pass finds nothing to accept and sends no second transaction.
+      const createdAt = new Date(Date.now() - 120 * 1000)
+      const proposal = createMockProposal({ createdAt })
+      const allocation = createMockAllocation()
+      // First call sees the pending proposal; after acceptance the row is gone.
+      const consumer = {
+        getPendingProposals: jest
+          .fn()
+          .mockResolvedValueOnce([proposal])
+          .mockResolvedValue([]),
+        getPendingProposalsForDeployment: jest.fn().mockResolvedValue([]),
+        markAccepted: jest.fn().mockResolvedValue(undefined),
+        markRejected: jest.fn().mockResolvedValue(undefined),
+      } as unknown as PendingRcaConsumer
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 60
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtx',
+        status: 1,
+      })
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+      await dm.acceptPendingProposals([allocation])
+
+      expect(consumer.markAccepted).toHaveBeenCalledTimes(1)
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    test('clamps the delay below the deadline so a near-deadline proposal is not held back', async () => {
+      // Configured delay (1 hour) far exceeds the time left to the deadline. Without
+      // the clamp the gate would wait an hour and miss the deadline; the clamp caps
+      // the wait below the deadline, so the on-chain accept is attempted right away.
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 4)
+      const proposal = createMockProposal({ createdAt: new Date(), deadline })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 3600
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtx',
+        status: 1,
+      })
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
     })
   })
 })
