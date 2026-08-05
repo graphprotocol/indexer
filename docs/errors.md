@@ -18,19 +18,33 @@ community.
 
 The URL used to connect to Ethereum is invalid.
 
+**Description**
+
+On startup the agent parses the configured network provider URL (e.g.
+`INDEXER_AGENT_ETHEREUM` / `--ethereum`). This error is logged as fatal and the
+process exits when that URL cannot be parsed.
+
 **Solution**
 
-TODO
+Correct the malformed provider URL in your configuration. Make sure it is a
+full, valid URL including the scheme (for example `https://…`).
 
 ## IE003
 
 **Summary**
 
-Failed to index network subgraph.
+Failed to index the network subgraph.
+
+**Description**
+
+This code is not thrown by the current indexer codebase. It relates to indexing
+the network subgraph locally, which current versions no longer do (they rely on
+a configured network subgraph endpoint instead).
 
 **Solution**
 
-TODO
+Not applicable to current versions. On an older release, check the agent logs
+for the underlying indexing error.
 
 ## IE004
 
@@ -50,7 +64,7 @@ Potential reasons for this:
 - The network subgraph endpoint configured via
   `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` or `--network-subgraph-endpoint` is
   unhealthy, cannot be reached for other reasons, or is outdated.
-- There indexer agent is unable to reach the indexing status API of the graph/index
+- The indexer agent is unable to reach the indexing status API of the graph/index
   node or nodes.
 - The indexer agent is unable to obtain a database connection or the query for
   indexing rules fails for some reason.
@@ -113,10 +127,10 @@ to be reported. Make sure that
 
 - Indexer agent can connect and deploy to the graph/index node or nodes fine.
 - The indexer has sufficient ETH.
-- The indexer has sufficient free stake to create new allocations. If this is
-  the case, reduce the allocation amount until some of the existing 
-  allocations have been closed and have released the allocated GRT again. 
-  In this case, the situation should resolve automatically.
+- The indexer has sufficient free stake to create new allocations. If it does
+  not, reduce the allocation amount until some of the existing allocations have
+  been closed and have released the allocated GRT again. In this case, the
+  situation should resolve automatically.
 
 ## IE006
 
@@ -124,9 +138,18 @@ to be reported. Make sure that
 
 Failed to cross-check allocation state with contracts.
 
+**Description**
+
+While deciding whether an allocation should be closed, the agent reads the
+allocation's on-chain state (`getAllocation`) from the staking or Subgraph
+Service contract. This warning is logged when that read fails; the agent
+conservatively assumes the allocation needs to be closed.
+
 **Solution**
 
-TODO
+This is typically a transient contract/RPC read failure. Check that the
+Ethereum node or provider is healthy and is not rate limiting the indexer. It
+usually resolves on the next reconciliation cycle.
 
 ## IE007
 
@@ -134,9 +157,14 @@ TODO
 
 Failed to check for network pause.
 
+**Description**
+
+The agent reaches the network in the same way as `IE004` to determine whether
+the protocol is paused, and this check failed.
+
 **Solution**
 
-Reference IE004. 
+See [#IE004](#ie004).
 
 ## IE008
 
@@ -144,9 +172,16 @@ Reference IE004.
 
 Failed to check operator status for indexer.
 
+**Description**
+
+The agent periodically checks whether its wallet is an authorized operator for
+the indexer (and whether the network is Horizon-ready). This warning is logged
+when that check fails; the agent assumes the status is unchanged.
+
 **Solution**
 
-TODO
+Usually transient. Verify connectivity to the network subgraph and the Ethereum
+provider. If operator status is genuinely wrong, see [#IE034](#ie034).
 
 ## IE009
 
@@ -162,7 +197,7 @@ defined in one of the following environment variables / command-line options:
 - `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` / `--network-subgraph-endpoint`
 - `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` / `--network-subgraph-endpoint`
 
-There can be a nuber of reasons for this:
+There can be a number of reasons for this:
 
 - The endpoint is unhealthy or unreliable.
 - The endpoint is out of date.
@@ -174,11 +209,11 @@ There can be a nuber of reasons for this:
 
 **Solution**
 
-Search the indexer service and agent logs for the `IE010` error code, e.g.
+Search the indexer service and agent logs for the `IE009` error code, e.g.
 with
 
 ```bash
-grep <logs> | grep IE010
+grep <logs> | grep IE009
 ```
 
 File an issue on https://github.com/graphprotocol/indexer/issues with the
@@ -190,9 +225,17 @@ matching logs attached.
 
 Failed to query indexer allocations.
 
+**Description**
+
+The agent or service failed to query the indexer's allocations from the network
+subgraph. This query is used throughout allocation monitoring and
+reconciliation.
+
 **Solution**
 
-TODO
+Check that the network subgraph endpoint is healthy, reachable, and synced.
+Sporadic occurrences are usually harmless; persistent ones will impair
+allocation management.
 
 ## IE011
 
@@ -200,9 +243,15 @@ TODO
 
 Failed to query claimable indexer allocations.
 
+**Description**
+
+The agent failed to query the set of allocations eligible for claiming rewards
+from the network subgraph.
+
 **Solution**
 
-TODO
+Check the network subgraph endpoint health and sync status, as with
+[#IE010](#ie010).
 
 ## IE012
 
@@ -210,9 +259,18 @@ TODO
 
 Failed to register indexer.
 
+**Description**
+
+The agent failed to register the indexer (or, under Graph Horizon, provision to
+the Subgraph Service) on chain. This action is retried several times before the
+error surfaces.
+
 **Solution**
 
-TODO
+Ensure the operator is authorized and the operator wallet has enough ETH for
+gas, the Ethereum provider is healthy, and the configured indexer URL and
+geo-coordinates are valid. Registration can be disabled via configuration if it
+is intentionally handled elsewhere.
 
 ## IE013
 
@@ -224,15 +282,14 @@ Failed to allocate: insufficient free stake.
 
 This is a sub-error of `IE005`. It is reported when an indexer has locked up
 all of their stake in existing allocations and there is no free stake to use
-for creating new allocations
+for creating new allocations.
 
 **Solution**
 
-The indexer has sufficient free stake to create new allocations. If this is
-the case, reduce the allocation amount on some of the deployments in the 
-indexing rules and wait until some of the existing allocations have been 
-closed and have released the allocated GRT again. In this case, the 
-situation should resolve automatically.
+Reduce the allocation amount on some of the deployments in the indexing rules
+and wait until some of the existing allocations have been closed and have
+released the allocated GRT again. In this case, the situation should resolve
+automatically.
 
 ## IE014
 
@@ -240,9 +297,17 @@ situation should resolve automatically.
 
 Failed to allocate: allocation not created on chain.
 
+**Description**
+
+The allocation transaction was submitted but never mined (the expected
+allocation-created event was not observed), so the allocation was not created
+on chain.
+
 **Solution**
 
-TODO
+Check that the operator wallet has enough ETH for gas and that transactions are
+being mined (healthy provider, adequate gas settings). The agent will retry on
+the next reconciliation cycle.
 
 ## IE015
 
@@ -250,9 +315,17 @@ TODO
 
 Failed to close allocation.
 
+**Description**
+
+The agent failed to close an allocation. This can happen if the close
+transaction is not mined, or if the required proof of indexing (POI) cannot be
+resolved for the allocation.
+
 **Solution**
 
-TODO
+Check the operator's ETH balance and provider health, and that the deployment
+is synced enough to produce a POI. See related [#IE062](#ie062),
+[#IE065](#ie065), [#IE067](#ie067), and [#IE068](#ie068).
 
 ## IE016
 
@@ -260,9 +333,15 @@ TODO
 
 Failed to claim allocation.
 
+**Description**
+
+Related to claiming rebate rewards for closed allocations. This code is not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions. On an older release, check the operator's
+ETH balance and provider health.
 
 ## IE017
 
@@ -270,9 +349,15 @@ TODO
 
 Failed to ensure default global indexing rule.
 
+**Description**
+
+On startup the agent ensures a default "global" indexing rule exists via the
+indexer management API. This error is reported when creating that rule fails.
+
 **Solution**
 
-TODO
+Check that the indexer management server and its database are reachable and
+healthy. See also [#IE025](#ie025).
 
 ## IE018
 
@@ -280,9 +365,15 @@ TODO
 
 Failed to query indexing status API.
 
+**Description**
+
+The agent or service failed to query the graph/index node's indexing status API
+(for example to list deployments and their status).
+
 **Solution**
 
-TODO
+Verify the graph/index node status endpoint is reachable and healthy. See also
+[#IE024](#ie024).
 
 ## IE019
 
@@ -290,9 +381,15 @@ TODO
 
 Failed to query proof of indexing.
 
+**Description**
+
+The agent failed to fetch a proof of indexing (POI) for a deployment from the
+graph/index node.
+
 **Solution**
 
-TODO
+Ensure the graph/index node is reachable and the deployment is synced far enough
+to produce a POI for the requested block. See also [#IE067](#ie067).
 
 ## IE020
 
@@ -330,9 +427,16 @@ See also: [#IE026](#ie026).
 
 Failed to migrate cost model.
 
+**Description**
+
+During a database migration of cost models, an individual cost model could not
+be migrated. The error is logged as a warning and the migration continues with
+the remaining cost models.
+
 **Solution**
 
-TODO
+Usually non-fatal. Check the logged cost model id/deployment and its `variables`
+for invalid data. If cost models are missing afterward, re-add them.
 
 ## IE022
 
@@ -340,9 +444,13 @@ TODO
 
 Failed to identify attestation signer for allocation.
 
+**Description**
+
+This code is not thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions.
 
 ## IE023
 
@@ -350,9 +458,15 @@ TODO
 
 Failed to handle state channel message.
 
+**Description**
+
+Relates to the legacy state-channel payment system that predates TAP (the
+Timeline Aggregation Protocol). It is not thrown by the current indexer
+codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP for query payments.
 
 ## IE024
 
@@ -360,9 +474,15 @@ TODO
 
 Failed to connect to indexing status API.
 
+**Description**
+
+The agent could not connect to the graph/index node's indexing status API after
+several retries.
+
 **Solution**
 
-TODO
+Verify the status endpoint URL is correct and the graph/index node is running
+and reachable from the indexer. See also [#IE018](#ie018).
 
 ## IE025
 
@@ -370,9 +490,15 @@ TODO
 
 Failed to query indexer management API.
 
+**Description**
+
+The agent or CLI failed to query the indexer management API (for example when
+reading indexing rules).
+
 **Solution**
 
-TODO
+Ensure the indexer management server is running and reachable and that its
+database is healthy.
 
 ## IE026
 
@@ -391,9 +517,15 @@ solutions.
 
 Failed to remove subgraph deployment.
 
+**Description**
+
+The agent's request to the graph/index node to remove (or pause) a subgraph
+deployment failed. The error is logged and not rethrown.
+
 **Solution**
 
-TODO
+Check that the graph/index node admin endpoint is reachable and that the
+deployment exists on the node.
 
 ## IE028
 
@@ -401,9 +533,15 @@ TODO
 
 Failed to reassign subgraph deployment.
 
+**Description**
+
+The agent's request to reassign a subgraph deployment to a graph/index node
+failed.
+
 **Solution**
 
-TODO
+Check that the graph/index node admin endpoint is reachable and that the target
+node name is valid.
 
 ## IE029
 
@@ -411,9 +549,14 @@ TODO
 
 Invalid Scalar-Receipt header provided.
 
+**Description**
+
+Relates to the legacy Scalar/Vector receipt payment headers that predate TAP.
+Not thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP receipts for query payments.
 
 ## IE030
 
@@ -421,9 +564,14 @@ TODO
 
 No Scalar-Receipt header provided.
 
+**Description**
+
+Relates to the legacy Scalar/Vector receipt payment headers that predate TAP.
+Not thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP receipts for query payments.
 
 ## IE031
 
@@ -431,9 +579,14 @@ TODO
 
 Invalid Scalar-Receipt value provided.
 
+**Description**
+
+Relates to the legacy Scalar/Vector receipt payment headers that predate TAP.
+Not thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP receipts for query payments.
 
 ## IE032
 
@@ -450,7 +603,7 @@ Failing to process a paid query can have a number of reasons:
   likely cause for this is that the network subgraph endpoint specified via
   `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` or `--network-subgraph-endpoint`
   is unhealthy and failing repeatedly. This particular situation would manifest
-  itself in a `Unable to sign the query response attesattion` error message.
+  itself in a `Unable to sign the query response attestation` error message.
 - The indexer service either fails to forward queries to the graph/query node
   or nodes, or the graph/query node or nodes fail to execute the query.
 - The indexer service fails to push the payment or attestation into the
@@ -477,9 +630,15 @@ grep <logs> | grep IE0
 
 Failed to process free query.
 
+**Description**
+
+Reported when the service could not process a free (unpaid) query. Not thrown
+by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions. On an older release, check the
+service-to-graph-node query path and the service logs.
 
 ## IE034
 
@@ -501,9 +660,13 @@ is included in the error message.
 
 **Summary**
 
+Unhandled promise rejection.
+
+**Description**
+
 An asynchronous operation (promise) failed somewhere in the system but this
 error wasn't handled. A frequent cause for these are failed promises internal to
-ethers.js, which have caused indexer-agent and index-service to crash.
+ethers.js, which have caused indexer-agent and indexer-service to crash.
 
 **Solution**
 
@@ -530,41 +693,63 @@ is best reported as an issue on https://github.com/graphprotocol/indexer/issues.
 
 **Summary**
 
-TODO
+Failed to query disputable allocations.
+
+**Description**
+
+The agent failed to query the set of recently closed allocations that could be
+subject to disputes (used by the dispute-monitoring / POI cross-checking flow),
+typically because the network subgraph or the epoch data it depends on could not
+be fetched.
 
 **Solution**
 
-TODO
+Check that the network subgraph endpoint is healthy and synced. See also
+[#IE038](#ie038).
 
 ## IE038
 
 **Summary**
 
-TODO
+Failed to query epochs.
+
+**Description**
+
+The agent failed to query epoch data (start blocks and hashes) from the network
+subgraph.
 
 **Solution**
 
-TODO
+Check that the network subgraph endpoint is healthy and synced.
 
 ## IE039
 
 **Summary**
 
-TODO
+Failed to store potential POI disputes.
+
+**Description**
+
+The agent failed to store potential POI disputes via the indexer management API.
 
 **Solution**
 
-TODO
+Ensure the indexer management server and its database are reachable and healthy.
 
 ## IE040
 
 **Summary**
 
-TODO
+Failed to fetch POI disputes.
+
+**Description**
+
+The CLI failed to fetch stored POI disputes from the indexer management API.
 
 **Solution**
 
-TODO
+Ensure the indexer management server is running and reachable and that its
+database is healthy.
 
 ## IE041
 
@@ -610,9 +795,15 @@ See also: [#IE041](#ie041).
 
 Failed to collect query fees on chain.
 
+**Description**
+
+Relates to the legacy Vector-based query-fee collection flow that predates TAP.
+Not thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP (RAVs) for query-fee
+collection. See also [#IE055](#ie055).
 
 ## IE045
 
@@ -620,9 +811,15 @@ TODO
 
 Failed to queue transfers for resolving.
 
+**Description**
+
+Relates to the legacy Vector transfer-resolution flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP for query payments. See also
+[#IE041](#ie041).
 
 ## IE046
 
@@ -630,9 +827,15 @@ TODO
 
 Failed to resolve transfer.
 
+**Description**
+
+Relates to the legacy Vector transfer-resolution flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP for query payments. See also
+[#IE041](#ie041).
 
 ## IE047
 
@@ -640,9 +843,15 @@ TODO
 
 Failed to mark transfer as failed.
 
+**Description**
+
+Relates to the legacy Vector transfer-resolution flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP for query payments. See also
+[#IE041](#ie041).
 
 ## IE048
 
@@ -650,9 +859,15 @@ TODO
 
 Failed to withdraw query fees for allocation.
 
+**Description**
+
+Relates to the legacy Vector-based query-fee flow that predates TAP. Not thrown
+by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP (RAVs) for query-fee
+collection. See also [#IE055](#ie055).
 
 ## IE049
 
@@ -660,9 +875,15 @@ TODO
 
 Failed to clean up transfers for allocation.
 
+**Description**
+
+Relates to the legacy Vector transfer-resolution flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP for query payments. See also
+[#IE041](#ie041).
 
 ## IE050
 
@@ -670,9 +891,15 @@ TODO
 
 Transaction reverted due to gas limit being hit.
 
+**Description**
+
+A transaction reverted with an "out of gas" reason. The agent responds by
+bumping the gas limit (and nonce) and retrying the transaction.
+
 **Solution**
 
-TODO
+This is usually handled automatically via retry with a higher gas limit. If it
+persists, increase the configured gas limit / gas settings for the agent.
 
 ## IE051
 
@@ -680,9 +907,17 @@ TODO
 
 Transaction reverted for unknown reason.
 
+**Description**
+
+A transaction reverted and the revert reason could not be determined. Unlike an
+out-of-gas revert, this is not retried automatically — the error is propagated.
+
 **Solution**
 
-TODO
+Inspect the failed transaction and the target contract's state and
+preconditions. This usually needs manual investigation; collect the logs and,
+if it appears to be a bug, file an issue on
+https://github.com/graphprotocol/indexer/issues.
 
 ## IE052
 
@@ -690,9 +925,17 @@ TODO
 
 Transaction aborted: maximum configured gas price reached.
 
+**Description**
+
+Historically raised when the gas price exceeded the configured maximum. Current
+versions instead wait for the base fee to fall below the configured threshold
+before sending, so this code is not thrown by the current codebase.
+
 **Solution**
 
-TODO
+If transactions are stalling because of high gas prices, review the configured
+base-fee / gas-price maximum. On current versions the agent waits rather than
+aborting.
 
 ## IE053
 
@@ -700,9 +943,15 @@ TODO
 
 Failed to queue receipts for collecting.
 
+**Description**
+
+Relates to the legacy query-fee voucher collection flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP RAVs. See also
+[#IE055](#ie055).
 
 ## IE054
 
@@ -710,9 +959,15 @@ TODO
 
 Failed to collect receipts in exchange for query fee voucher.
 
+**Description**
+
+Relates to the legacy query-fee voucher collection flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP RAVs. See also
+[#IE055](#ie055).
 
 ## IE055
 
@@ -720,9 +975,17 @@ TODO
 
 Failed to redeem query fee voucher.
 
+**Description**
+
+The agent failed to redeem a query-fee RAV (Receipt Aggregate Voucher) on chain
+via the TAP collector. The failed redemption is retried on subsequent collection
+cycles.
+
 **Solution**
 
-TODO
+Check that the operator wallet has enough ETH for gas and that the Ethereum
+provider is healthy. Persistent failures may indicate an escrow or RAV validity
+problem; collect the logs for the affected allocation.
 
 ## IE056
 
@@ -730,9 +993,14 @@ TODO
 
 Failed to remember allocation for collecting receipts later.
 
+**Description**
+
+Relates to the legacy query-fee voucher collection flow that predates TAP. Not
+thrown by the current indexer codebase.
+
 **Solution**
 
-TODO
+Not applicable to current versions, which use TAP RAVs.
 
 ## IE057
 
@@ -740,9 +1008,18 @@ TODO
 
 Transaction reverted due to failing assertion in contract.
 
+**Description**
+
+A transaction either produced no receipt (it timed out waiting for the
+configured number of confirmations) or reverted for a reason other than
+out-of-gas or unknown, indicating a contract-level assertion or precondition
+failure.
+
 **Solution**
 
-TODO
+Inspect the transaction and the target contract's required preconditions (for
+example authorization, or allocation/epoch state). Verify provider health and
+the confirmation settings, then retry.
 
 ## IE058
 
@@ -750,9 +1027,17 @@ TODO
 
 Transaction failed because nonce has already been used.
 
+**Description**
+
+The transaction's nonce was already used, which typically means the original
+transaction was already mined (or is about to be). The agent delays for about 30
+seconds and returns to the reconciliation loop to re-evaluate.
+
 **Solution**
 
-TODO
+Usually benign — the original transaction likely succeeded. If transactions
+repeatedly collide on nonces, ensure only one agent/operator is submitting
+transactions from the wallet.
 
 ## IE059
 
@@ -760,9 +1045,15 @@ TODO
 
 Failed to check latest operator ETH balance.
 
+**Description**
+
+The periodic operator ETH balance check (which refreshes every 120s) failed to
+read the balance from the provider. It is logged as a warning only.
+
 **Solution**
 
-TODO
+A transient provider issue in most cases. Verify the Ethereum node or provider
+is healthy and reachable.
 
 ## IE060
 
@@ -822,7 +1113,7 @@ Failed to unallocate: Allocation has already been closed.
 
 **Solution**
 
-Check the allocation ID and network sync status. If the allocation ID is correct and allocation is closed, then there's nothing to be done. 
+Check the allocation ID and network sync status. If the allocation ID is correct and allocation is closed, then there's nothing to be done.
 
 ## IE066
 
@@ -852,7 +1143,7 @@ Failed to resolve POI: User provided POI does not match reference fetched from t
 
 **Solution**
 
-Check sync and health status of the subgraph to access the issue. If needed, provide a POI or use `--force` to bypass POI checks. 
+Check sync and health status of the subgraph to access the issue. If needed, provide a POI or use `--force` to bypass POI checks.
 
 ## IE069
 
@@ -862,7 +1153,7 @@ Failed to query Epoch Block Oracle Subgraph
 
 **Solution**
 
-Check `epoch-subgraph-endpoint` query endpoint for its syncing status and the EBO contract state. 
+Check `epoch-subgraph-endpoint` query endpoint for its syncing status and the EBO contract state.
 
 ## IE070
 
@@ -882,7 +1173,7 @@ Epoch subgraph required for subgraphs indexing networks in which rpc is unprovid
 
 **Description**
 
-This is a sub-error of `IE069`. It is reported when the indexer agent doesn't have access to an epoch subgraph endpoint to identify the epoch start block for chains other than the settlement network as indicated by start-up option `--ethereum-network`. 
+This is a sub-error of `IE069`. It is reported when the indexer agent doesn't have access to an epoch subgraph endpoint to identify the epoch start block for chains other than the settlement network as indicated by start-up option `--ethereum-network`.
 
 **Solution**
 
