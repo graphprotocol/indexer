@@ -887,3 +887,367 @@ This is a sub-error of `IE069`. It is reported when the indexer agent doesn't ha
 **Solution**
 
 Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `sepolia`, `gnosis`) and is on or after version 0.28.0.
+
+## IE072
+
+**Summary**
+
+Failed to execute batch transaction on the staking contract.
+
+**Description**
+
+The indexer agent submits approved actions (e.g. allocate, unallocate,
+reallocate) to the staking contract as a single batched transaction. This
+error is reported when that batched transaction fails to execute. The
+underlying error returned by the contract call is included in the logs.
+
+**Solution**
+
+Check the logged error cause for the specific revert reason. Common causes
+are insufficient ETH for gas, the operator not being authorized, the network
+being paused, or one of the batched actions being individually invalid.
+Resolve the underlying cause and the agent will retry the batch.
+
+## IE073
+
+**Summary**
+
+Failed to query subgraph features from the indexing statuses endpoint.
+
+**Description**
+
+The indexer failed to fetch a subgraph deployment's feature set (the
+`subgraphFeatures` query) from the graph/index node status API. This can
+happen if the deployment is not known to the graph/index node, or the status
+endpoint is unreachable or returned an error.
+
+**Solution**
+
+Verify the graph/index node status endpoint is reachable from the indexer and
+that the subgraph ID is valid and known to the node. Check the graph/index
+node logs for related errors.
+
+## IE074
+
+**Summary**
+
+Failed to deploy subgraph deployment: network not supported.
+
+**Description**
+
+This is a more specific form of `IE026`. It is reported when the indexer
+agent tries to deploy a subgraph deployment to the graph/index node or nodes
+for a network that the node is not configured to support.
+
+**Solution**
+
+Add an Ethereum node or provider for the required network to the graph/index
+node configuration so it can index the deployment's chain.
+
+See also: [#IE026](#ie026).
+
+## IE075
+
+**Summary**
+
+Failed to connect to the network contracts.
+
+**Description**
+
+On startup the indexer resolves the set of protocol contracts it needs (e.g.
+`HorizonStaking`, `SubgraphService`, `EpochManager` and, before Horizon,
+`LegacyServiceRegistry`). This error is logged as fatal and the process exits
+when one or more required contracts cannot be found for the configured
+network. The log lists which required contracts were missing.
+
+**Solution**
+
+Ensure the indexer is configured for a supported network and chain ID, that
+the contracts for that network are deployed and discoverable, and that the
+RPC endpoint used to resolve contract addresses is healthy.
+
+## IE076
+
+**Summary**
+
+Failed to resume subgraph deployment.
+
+**Description**
+
+The indexer agent's `subgraph_resume` request to the graph/index node failed,
+so the deployment could not be resumed from a paused state. The logged error
+cause contains details.
+
+**Solution**
+
+Check that the graph/index node admin endpoint is reachable and that the
+deployment exists on the node. This is analogous to the pause failure in
+`IE027`.
+
+## IE077
+
+**Summary**
+
+Failed to allocate: subgraph deployment is not syncing.
+
+**Description**
+
+Before opening an allocation, the indexer agent checks that the target
+subgraph deployment is syncing and healthy on the graph/index node. This error
+is reported when no indexing status is found for the deployment, meaning the
+node is not (yet) indexing it.
+
+**Solution**
+
+Ensure the deployment has been created/assigned on the graph/index node and is
+syncing before allocating to it. Wait for the deployment to appear in the
+indexing statuses, then retry the allocate action.
+
+## IE078
+
+**Summary**
+
+No provision found for the indexer and data service.
+
+**Description**
+
+This is a Graph Horizon error. The network monitor queried the network
+subgraph for the indexer's provision to the given data service (the Subgraph
+Service) and found none. A provision is required to operate under Horizon.
+
+**Solution**
+
+Create a provision to the Subgraph Service for your indexer before performing
+Horizon actions. Verify the indexer and data service addresses are correct and
+that the network subgraph is synced.
+
+## IE079
+
+**Summary**
+
+Failed to add stake to provision: invalid stake amount provided.
+
+**Description**
+
+This is a Graph Horizon error. The amount of GRT provided to add to a
+provision was negative.
+
+**Solution**
+
+Provide a non-negative (positive) GRT stake amount when adding to a provision.
+
+## IE080
+
+**Summary**
+
+Failed to add stake to provision: stake not added on chain.
+
+**Description**
+
+This is a Graph Horizon error. The `addToProvision` transaction was submitted
+but the expected `ProvisionIncreased` event was not found, so the stake was
+not confirmed added on chain (the transaction was never mined).
+
+**Solution**
+
+Check that the operator has sufficient ETH for gas and that transactions from
+the agent are being mined. Verify network status and retry. Note that if the
+transaction result was `paused` or `unauthorized`, an `IE062` is reported
+instead.
+
+## IE081
+
+**Summary**
+
+Multiple provisions found for the indexer and data service.
+
+**Description**
+
+This is a Graph Horizon error. The network monitor expected exactly one
+provision for the indexer/data service pair but found more than one.
+
+**Solution**
+
+This is unexpected. Review the indexer's provisions on chain and in the
+network subgraph. If the state cannot be explained, collect the logs and file
+an issue on https://github.com/graphprotocol/indexer/issues.
+
+## IE082
+
+**Summary**
+
+Graph Horizon protocol not detected.
+
+**Description**
+
+A Horizon-only operation (such as querying or managing provisions) was
+attempted on a network where the Graph Horizon protocol upgrade has not been
+detected.
+
+**Solution**
+
+Provisions and related actions only apply after the Graph Horizon upgrade.
+Ensure you are operating on a network where Horizon is live and that the
+indexer's contract configuration is up to date.
+
+## IE083
+
+**Summary**
+
+Failed to thaw stake from provision.
+
+**Description**
+
+This is a Graph Horizon error. Thawing stake from a provision failed. Causes
+include a non-positive thaw amount, attempting to thaw more than the tokens
+available in the provision, or the `thaw` transaction not being mined (the
+expected `ProvisionThawed` event was not found).
+
+**Solution**
+
+Provide a positive thaw amount that is less than or equal to the tokens
+available in the provision. If the transaction failed to mine, ensure the
+operator has sufficient ETH and the network is healthy, then retry. The logged
+error cause identifies which case applies.
+
+## IE084
+
+**Summary**
+
+Could not resolve POI block number.
+
+**Description**
+
+While resolving a POI, no block number could be generated from the graph/index
+node and none was provided by the user.
+
+**Solution**
+
+Provide a block number for the POI, or ensure the graph/index node can
+generate one (the deployment must be synced far enough), then retry.
+
+## IE085
+
+**Summary**
+
+Could not resolve public POI.
+
+**Description**
+
+While resolving a public POI, none could be generated from the graph/index
+node and none was provided by the user.
+
+**Solution**
+
+Provide a public POI, or ensure the graph/index node can generate one for the
+deployment at the target block, then retry.
+
+## IE086
+
+**Summary**
+
+Indexer not registered in the Subgraph Service.
+
+**Description**
+
+This is a Graph Horizon error. When opening or reallocating an allocation
+under Horizon, the agent checks that the indexer is registered with the
+Subgraph Service (has a non-empty service URL). This error is thrown
+automatically when the indexer is not yet registered, to give clearer feedback
+during the transition period.
+
+**Solution**
+
+Register your indexer with the Subgraph Service (set your service URL / register
+on chain) before allocating, then retry the allocation.
+
+## IE087
+
+**Summary**
+
+Failed to resize allocation.
+
+**Description**
+
+The agent failed to prepare the `resizeAllocation` transaction for an
+allocation on the Subgraph Service. The logged error contains the underlying
+cause.
+
+**Solution**
+
+Check that the allocation ID and new amount are valid and that the Subgraph
+Service contract call can be made from the agent. Review the logged error
+cause for details.
+
+## IE088
+
+**Summary**
+
+Failed to present POI.
+
+**Description**
+
+This is a Graph Horizon error associated with the "present POI" action, which
+collects indexing rewards for an allocation by presenting a POI *without*
+closing the allocation (`graph indexer allocations present-poi`, or the
+`presentPOI` mutation). Presenting a POI resolves the POI against the
+graph/index node and submits a `collect` transaction to the Subgraph Service.
+
+Note: in the current indexer codebase this code is defined but is not raised on
+its own. Failures in the present-POI flow surface through the more specific
+codes it depends on — `IE065` if the allocation is already closed, `IE062` if
+the transaction is rejected because the network is paused or the operator is
+not authorized, and `IE089` if the `collect` transaction is never mined — or as
+the underlying error itself.
+
+**Solution**
+
+Diagnose present-POI failures via the specific code reported in the logs:
+`IE065` (allocation already closed), `IE062` (network paused / operator not
+authorized), or `IE089` (transaction not mined). Ensure the allocation is still
+active, the operator is authorized and funded with ETH for gas, and the POI can
+be resolved for the deployment at the target block.
+
+See also: [#IE062](#ie062), [#IE065](#ie065), [#IE089](#ie089).
+
+## IE089
+
+**Summary**
+
+Failed to collect indexing rewards.
+
+**Description**
+
+This is a Graph Horizon error. When collecting indexing rewards for an
+allocation via the Subgraph Service, the `collect` transaction was submitted
+but the expected `ServicePaymentCollected` event was not found, i.e. the
+transaction was never successfully mined.
+
+**Solution**
+
+Ensure the operator has sufficient ETH for gas, that the network is not paused,
+and that the operator is authorized (a `paused`/`unauthorized` result is
+reported separately as `IE062`). Verify transactions are being mined, then
+retry.
+
+## IE090
+
+**Summary**
+
+Failed to reallocate: indexer is overallocated.
+
+**Description**
+
+This is a Graph Horizon error. It is reported on reallocate paths when the
+indexer is over-allocated on the Subgraph Service. In this situation the
+`collect` step would automatically close the existing allocation while the new
+allocation is rejected, leaving the indexer with no allocation on the
+deployment. To prevent that, the agent checks for over-allocation first and
+aborts the reallocation. The error message includes the amount (in GRT) by
+which the indexer is over-allocated.
+
+**Solution**
+
+Close the allocation directly with `graph indexer allocations close`, which
+handles over-allocation gracefully and still collects rewards, or add provision
+tokens to reduce the over-allocation before retrying the reallocate action.
