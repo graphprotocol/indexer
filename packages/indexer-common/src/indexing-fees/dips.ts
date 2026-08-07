@@ -795,8 +795,7 @@ export class DipsManager {
 
     // Step 1: Best-effort final collection BEFORE cancelling.
     try {
-      const blockNumber = await this.network.networkProvider.getBlockNumber()
-      await this.tryCollectAgreement(agreement, blockNumber, logger)
+      await this.tryCollectAgreement(agreement, logger)
       logger.info('Final collection succeeded before cancel')
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
@@ -939,7 +938,7 @@ export class DipsManager {
 
       for (const agreement of readyAgreements) {
         try {
-          const result = await this.tryCollectAgreement(agreement, blockNumber, logger)
+          const result = await this.tryCollectAgreement(agreement, logger)
           if (result === 'collected') {
             this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
             this.cleanupFinishedAgreement(agreement, nowSeconds, logger)
@@ -995,16 +994,24 @@ export class DipsManager {
 
   private async tryCollectAgreement(
     agreement: SubgraphIndexingAgreement,
-    blockNumber: number,
     logger: Logger,
   ): Promise<'collected' | 'paused' | 'unauthorized'> {
     const deploymentId = new SubgraphDeploymentID(agreement.subgraphDeploymentId)
     const entityCounts = await this.graphNode.entityCount([deploymentId])
     const entities = entityCounts[0]
 
-    const recentBlock = blockNumber - RECENT_BLOCK_OFFSET
-    const { network: networkAlias } = await this.graphNode.subgraphFeatures(deploymentId)
-    const blockHash = await this.graphNode.blockHashFromNumber(networkAlias!, recentBlock)
+    // The POI block must belong to the chain the deployment indexes, which need
+    // not be the protocol chain, so the deployment's indexed head is the base.
+    const [status] = await this.graphNode.indexingStatus([deploymentId])
+    const chain = status?.chains?.[0]
+    if (!chain?.network || !chain?.latestBlock) {
+      throw new Error(
+        `Deployment ${deploymentId.ipfsHash} has no indexed block to reference a POI against`,
+      )
+    }
+    const networkAlias = chain.network
+    const recentBlock = Math.max(Number(chain.latestBlock.number) - RECENT_BLOCK_OFFSET, 0)
+    const blockHash = await this.graphNode.blockHashFromNumber(networkAlias, recentBlock)
     const poi = await this.graphNode.proofOfIndexing(
       deploymentId,
       { number: recentBlock, hash: blockHash },

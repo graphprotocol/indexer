@@ -41,6 +41,16 @@ const mockGraphNode = {
   proofOfIndexing: jest.fn(),
   blockHashFromNumber: jest.fn(),
   subgraphFeatures: jest.fn().mockResolvedValue({ network: 'mainnet' }),
+  indexingStatus: jest.fn().mockResolvedValue([
+    {
+      chains: [
+        {
+          network: 'mainnet',
+          latestBlock: { number: '500', hash: '0x' + '00'.repeat(32) },
+        },
+      ],
+    },
+  ]),
 } as any
 
 const mockNetwork = {
@@ -139,6 +149,44 @@ describe('DipsManager.collectAgreementPayments', () => {
     await dm.collectAgreementPayments()
 
     expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+  })
+
+  test("builds the POI reference from the deployment chain's indexed head, not the protocol chain", async () => {
+    mockQuery.mockResolvedValueOnce({
+      data: { indexingAgreements: [makeReadyAgreement()] },
+    })
+
+    // Protocol chain (mock provider) sits at block 1000; the deployment indexes
+    // a chain whose indexed head is 500. The POI must reference the latter.
+    mockGraphNode.entityCount.mockResolvedValueOnce([500])
+    mockGraphNode.blockHashFromNumber.mockResolvedValueOnce('0x' + 'ab'.repeat(32))
+    mockGraphNode.proofOfIndexing.mockResolvedValueOnce('0x' + 'cd'.repeat(32))
+    mockExecuteTransaction.mockResolvedValueOnce({ hash: '0xtxhash', status: 1 })
+
+    const dm = createDipsManager()
+    await dm.collectAgreementPayments()
+
+    expect(mockGraphNode.blockHashFromNumber).toHaveBeenCalledWith('mainnet', 490)
+    expect(mockGraphNode.proofOfIndexing).toHaveBeenCalledWith(
+      expect.anything(),
+      { number: 490, hash: '0x' + 'ab'.repeat(32) },
+      expect.anything(),
+    )
+  })
+
+  test('does not attempt collection when the deployment has no indexed block', async () => {
+    mockQuery.mockResolvedValueOnce({
+      data: { indexingAgreements: [makeReadyAgreement()] },
+    })
+
+    mockGraphNode.entityCount.mockResolvedValueOnce([500])
+    mockGraphNode.indexingStatus.mockResolvedValueOnce([{ chains: [] }])
+
+    const dm = createDipsManager()
+    await dm.collectAgreementPayments()
+
+    expect(mockExecuteTransaction).not.toHaveBeenCalled()
+    expect(logger.warn).toHaveBeenCalled()
   })
 
   test('updates tracker after successful collection', async () => {

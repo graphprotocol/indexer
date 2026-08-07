@@ -910,7 +910,11 @@ describe('DipsManager', () => {
         // Mock block number and graph node methods for collect
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.indexingStatus = jest.fn().mockResolvedValue([
+          {
+            chains: [{ network: 'mainnet', latestBlock: { number: '90', hash: '0xh' } }],
+          },
+        ])
         graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
@@ -940,7 +944,11 @@ describe('DipsManager', () => {
 
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.indexingStatus = jest.fn().mockResolvedValue([
+          {
+            chains: [{ network: 'mainnet', latestBlock: { number: '90', hash: '0xh' } }],
+          },
+        ])
         graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
@@ -968,7 +976,11 @@ describe('DipsManager', () => {
         // Mock block number and graph node methods
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.indexingStatus = jest.fn().mockResolvedValue([
+          {
+            chains: [{ network: 'mainnet', latestBlock: { number: '90', hash: '0xh' } }],
+          },
+        ])
         graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
@@ -995,7 +1007,11 @@ describe('DipsManager', () => {
 
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.indexingStatus = jest.fn().mockResolvedValue([
+          {
+            chains: [{ network: 'mainnet', latestBlock: { number: '90', hash: '0xh' } }],
+          },
+        ])
         graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
@@ -1021,7 +1037,11 @@ describe('DipsManager', () => {
 
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.indexingStatus = jest.fn().mockResolvedValue([
+          {
+            chains: [{ network: 'mainnet', latestBlock: { number: '90', hash: '0xh' } }],
+          },
+        ])
         graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
