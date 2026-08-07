@@ -1010,7 +1010,10 @@ export class DipsManager {
       )
     }
     const networkAlias = chain.network
-    const recentBlock = Math.max(Number(chain.latestBlock.number) - RECENT_BLOCK_OFFSET, 0)
+    const recentBlock = Math.max(
+      Number(chain.latestBlock.number) - RECENT_BLOCK_OFFSET,
+      0,
+    )
     const blockHash = await this.graphNode.blockHashFromNumber(networkAlias, recentBlock)
     const poi = await this.graphNode.proofOfIndexing(
       deploymentId,
