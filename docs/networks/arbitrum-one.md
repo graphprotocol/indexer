@@ -83,7 +83,7 @@ They are configured using a TOML file provided with `--config`. You should start
 | `blockchain.receipts_verifier_address` | `0x33f9E93266ce0E108fc85DdE2f71dab555A0F05a`                                                                            |
 | `blockchain.receipts_verifier_address_v2` | `0x8f69F5C07477Ac46FBc491B1E6D91E2bb0111A9e`                                                                         |
 | `blockchain.subgraph_service`          | `0xb2Bb92d0DE618878E438b55D5846cfecD9301105`                                                                            |
-| `tap.sender_aggregator_endpoints`      | `0xDDE4cfFd3D9052A9cb618fC05a1Cd02be1f2F467 = https://tap-aggregator.network.thegraph.com`                              |
+| `tap.sender_aggregator_endpoints`      | `0x6AA2Ace7Ec77C06C1DAb1b0aFaC9d56d9C9D0e50 = https://tap-aggregator.network.thegraph.com`                              |
 | `horizon.enabled`                      | `true`                                                                                                                  |
 
 Notes:
