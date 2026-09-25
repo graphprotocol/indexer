@@ -1,3 +1,5 @@
+import axios, { AxiosInstance } from 'axios'
+import { createLogger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { DocumentNode, print } from 'graphql'
 import {
   SubgraphFreshnessChecker,
@@ -5,7 +7,8 @@ import {
   ProviderInterface,
   SubgraphQueryInterface,
 } from '../subgraphs'
-import { QueryResult } from '../subgraph-client'
+import { QueryResult, SubgraphClient } from '../subgraph-client'
+import { GraphNode } from '../graph-node'
 import gql from 'graphql-tag'
 import { mergeSelectionSets } from '../utils'
 
@@ -254,5 +257,93 @@ describe('SubgraphFreshnessChecker', () => {
         ]),
       )
     })
+  })
+})
+
+describe('SubgraphClient deployment monitoring', () => {
+  const logger = createLogger({
+    name: 'Subgraph client tests',
+    async: false,
+    level: 'error',
+  })
+  const deployment = new SubgraphDeploymentID(
+    'Qmd9nZKCH8UZU1pBzk7G8ECJr3jX3a2vAf3vowuTwFvrQg',
+  )
+  const unsynced = { synced: false, health: 'healthy', chains: [] }
+  const synced = { synced: true, health: 'healthy', chains: [] }
+  const unhealthy = { synced: true, health: 'unhealthy', chains: [] }
+  let indexingStatus: jest.Mock
+  let graphNode: GraphNode
+  let remotePost: jest.Mock
+  let localPost: jest.Mock
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+    indexingStatus = jest.fn()
+    remotePost = jest.fn().mockResolvedValue({ data: 'remote' })
+    localPost = jest.fn().mockResolvedValue({ data: 'local' })
+    jest
+      .spyOn(axios, 'create')
+      .mockReturnValue({ post: remotePost } as unknown as AxiosInstance)
+    graphNode = {
+      indexingStatus,
+      getQueryClient: jest.fn().mockReturnValue({ post: localPost }),
+      getQueryEndpoint: jest.fn().mockReturnValue('http://local'),
+    } as unknown as GraphNode
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+    jest.restoreAllMocks()
+  })
+
+  it('selects the local deployment when it syncs and retains its status on a failed poll', async () => {
+    indexingStatus
+      .mockResolvedValueOnce([unsynced])
+      .mockResolvedValueOnce([synced])
+      .mockRejectedValueOnce(new Error('status unavailable'))
+      .mockResolvedValueOnce([unhealthy])
+
+    const client = await SubgraphClient.create({
+      logger,
+      name: 'Test Subgraph',
+      endpoint: 'http://remote',
+      deployment: { graphNode, deployment },
+    })
+    await jest.advanceTimersByTimeAsync(0)
+
+    await expect(client.queryRaw('{}')).resolves.toEqual({ data: 'remote' })
+    await jest.advanceTimersByTimeAsync(60_000)
+    await expect(client.queryRaw('{}')).resolves.toEqual({ data: 'local' })
+
+    await jest.advanceTimersByTimeAsync(60_000)
+    await expect(client.queryRaw('{}')).resolves.toEqual({ data: 'local' })
+
+    await jest.advanceTimersByTimeAsync(60_000)
+    await expect(client.queryRaw('{}')).resolves.toEqual({ data: 'remote' })
+    expect(remotePost).toHaveBeenCalledTimes(2)
+    expect(localPost).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for a deployment-only client to sync', async () => {
+    indexingStatus.mockResolvedValueOnce([unsynced]).mockResolvedValueOnce([synced])
+
+    let created = false
+    const clientPromise = SubgraphClient.create({
+      logger,
+      name: 'Test Subgraph',
+      deployment: { graphNode, deployment },
+    }).then((client) => {
+      created = true
+      return client
+    })
+
+    await jest.advanceTimersByTimeAsync(0)
+    expect(created).toBe(false)
+
+    await jest.advanceTimersByTimeAsync(60_000)
+    const client = await clientPromise
+    expect(created).toBe(true)
+    await expect(client.queryRaw('{}')).resolves.toEqual({ data: 'local' })
   })
 })
