@@ -827,84 +827,56 @@ async function closeHorizonAllocation(
     throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
   }
 
-  // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
-  // and we should NOT call stopService to avoid "AllocationClosed" revert
-  const isOverAllocated = await contracts.SubgraphService.isOverAllocated(address)
-
-  logger.debug('Checking over-allocation status for close allocation', {
-    allocationId: allocation.id,
-    isOverAllocated,
-  })
-
+  // When over-allocated, collect resizes the allocation to zero instead of closing it,
+  // so stopService is still needed.
   const collectData = encodeCollectData(allocation.id, poiData)
+  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'collect',
+    [address, PaymentTypes.IndexingRewards, collectData],
+  )
+  const closeAllocationData = encodeStopServiceData(allocation.id)
+  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'stopService',
+    [address, closeAllocationData],
+  )
 
-  let receipt: TransactionReceipt | 'paused' | 'unauthorized'
-  let rewardsAssigned: bigint
+  const receipt = await transactionManager.executeTransaction(
+    async () =>
+      contracts.SubgraphService.multicall.estimateGas([
+        collectCallData,
+        stopServiceCallData,
+      ]),
+    async (gasLimit) =>
+      contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], {
+        gasLimit,
+      }),
+    logger,
+  )
 
-  if (isOverAllocated) {
-    // Reuse shared collect logic - allocation will auto-close
-    logger.info(
-      'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
-      { allocationId: allocation.id },
+  if (receipt === 'paused' || receipt === 'unauthorized') {
+    throw indexerError(
+      IndexerErrorCode.IE062,
+      `Allocation '${allocation.id}' could not be closed: ${receipt}`,
     )
-    const result = await executeCollectTransaction(
-      network,
-      allocation.id,
-      collectData,
-      logger,
-    )
-    receipt = result.receipt
-    rewardsAssigned = result.rewardsCollected
-  } else {
-    // Normal path: multicall collect + stopService
-    const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
-      'collect',
-      [address, PaymentTypes.IndexingRewards, collectData],
-    )
-    const closeAllocationData = encodeStopServiceData(allocation.id)
-    const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
-      'stopService',
-      [address, closeAllocationData],
-    )
-
-    receipt = await transactionManager.executeTransaction(
-      async () =>
-        contracts.SubgraphService.multicall.estimateGas([
-          collectCallData,
-          stopServiceCallData,
-        ]),
-      async (gasLimit) =>
-        contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], {
-          gasLimit,
-        }),
-      logger,
-    )
-
-    if (receipt === 'paused' || receipt === 'unauthorized') {
-      throw indexerError(
-        IndexerErrorCode.IE062,
-        `Allocation '${allocation.id}' could not be closed: ${receipt}`,
-      )
-    }
-
-    const collectEventLogs = transactionManager.findEvent(
-      'ServicePaymentCollected',
-      contracts.SubgraphService.interface,
-      'serviceProvider',
-      address,
-      receipt,
-      logger,
-    )
-
-    if (!collectEventLogs) {
-      throw indexerError(
-        IndexerErrorCode.IE015,
-        `Collecting indexing rewards for allocation '${allocation.id}' failed`,
-      )
-    }
-
-    rewardsAssigned = collectEventLogs.tokens ?? 0n
   }
+
+  const collectEventLogs = transactionManager.findEvent(
+    'ServicePaymentCollected',
+    contracts.SubgraphService.interface,
+    'serviceProvider',
+    address,
+    receipt,
+    logger,
+  )
+
+  if (!collectEventLogs) {
+    throw indexerError(
+      IndexerErrorCode.IE015,
+      `Collecting indexing rewards for allocation '${allocation.id}' failed`,
+    )
+  }
+
+  const rewardsAssigned: bigint = collectEventLogs.tokens ?? 0n
 
   if (rewardsAssigned === 0n) {
     logger.warn('No rewards were distributed upon closing the allocation')

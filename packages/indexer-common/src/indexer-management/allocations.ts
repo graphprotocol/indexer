@@ -1221,28 +1221,8 @@ export class AllocationManager {
       }
     }
 
-    // Horizon: Need to collect indexing rewards and stop service
-    // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
-    // and we should NOT call stopService to avoid "AllocationClosed" revert
-    const isOverAllocated = await this.network.contracts.SubgraphService.isOverAllocated(
-      params.indexer,
-    )
-
-    logger.debug('Checking over-allocation status for unallocate', {
-      allocationID: params.allocationID,
-      isOverAllocated,
-    })
-
-    if (isOverAllocated) {
-      // Reuse populatePresentPOITransaction - collect will auto-close the allocation
-      logger.info(
-        'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
-        { allocationID: params.allocationID },
-      )
-      return await this.populatePresentPOITransaction(logger, params)
-    }
-
-    // Normal path: multicall collect + stopService
+    // Horizon: collect indexing rewards and stop service. When over-allocated, collect
+    // resizes the allocation to zero instead of closing it, so stopService is still needed.
     const collectData = encodeCollectData(params.allocationID, params.poi)
     const collectCallData =
       this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
