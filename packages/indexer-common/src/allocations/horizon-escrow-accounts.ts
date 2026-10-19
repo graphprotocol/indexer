@@ -104,36 +104,122 @@ export const getEscrowAccounts = async (
   indexer: string,
   collectorAddress: string,
 ): Promise<PaymentsEscrowAccounts> => {
-  const result = await subgraph.query<PaymentsEscrowAccountResponse>(
-    gql`
-      query PaymentsEscrowAccountQuery($indexer: ID!, $collector: String!) {
-        paymentsEscrowAccounts(
-          where: { receiver_: { id: $indexer }, collector: $collector }
+  const accounts: PaymentsEscrowAccountResponse = {
+    paymentsEscrowAccounts: [],
+    graphTallyTokensCollecteds: [],
+  }
+  const pageSize = 1000
+  let accountCursor = ''
+  let collectedCursor = ''
+  let accountsDone = false
+  let collectedDone = false
+  let block: { hash: string } | undefined
+
+  type Page = {
+    paymentsEscrowAccounts: (PaymentsEscrowAccountResponse['paymentsEscrowAccounts'][number] & {
+      id: string
+    })[]
+    graphTallyTokensCollecteds: (PaymentsEscrowAccountResponse['graphTallyTokensCollecteds'][number] & {
+      id: string
+    })[]
+    _meta: { block: { hash: string } }
+  }
+
+  // Each entity has an independent cursor, but every page must describe the same
+  // chain snapshot. Never treat a missing/failed page as zero collected tokens.
+  while (!accountsDone || !collectedDone) {
+    const result = await subgraph.query<Page>(
+      gql`
+        query PaymentsEscrowAccountQuery(
+          $indexer: ID!
+          $collector: String!
+          $accountCursor: String!
+          $collectedCursor: String!
+          $accountsFirst: Int!
+          $collectedFirst: Int!
+          $block: Block_height
         ) {
-          balance
-          payer {
+          paymentsEscrowAccounts(
+            first: $accountsFirst
+            orderBy: id
+            orderDirection: asc
+            block: $block
+            where: {
+              receiver_: { id: $indexer }
+              collector: $collector
+              id_gt: $accountCursor
+            }
+          ) {
             id
+            balance
+            payer {
+              id
+            }
+          }
+          graphTallyTokensCollecteds(
+            first: $collectedFirst
+            orderBy: id
+            orderDirection: asc
+            block: $block
+            where: { receiver_: { id: $indexer }, id_gt: $collectedCursor }
+          ) {
+            id
+            tokens
+            collectionId
+            payer {
+              id
+            }
+          }
+          _meta(block: $block) {
+            block {
+              hash
+            }
           }
         }
-        graphTallyTokensCollecteds(where: { receiver_: { id: $indexer } }) {
-          tokens
-          collectionId
-          payer {
-            id
-          }
-        }
+      `,
+      {
+        indexer,
+        collector: collectorAddress,
+        accountCursor,
+        collectedCursor,
+        accountsFirst: accountsDone ? 0 : pageSize,
+        collectedFirst: collectedDone ? 0 : pageSize,
+        block,
+      },
+    )
+    if (result.error || !result.data) {
+      throw new Error(`Failed to query payments escrow accounts: ${result.error}`)
+    }
+    const hash = result.data._meta?.block?.hash
+    if (!hash || (block && hash !== block.hash)) {
+      throw new Error('Missing or inconsistent block hash in payments escrow accounts')
+    }
+    block = { hash }
+    const page = result.data
+    // Validate progress even within a page: repeating or rewinding ids must not
+    // silently produce a partial snapshot or an infinite pagination loop.
+    for (const account of page.paymentsEscrowAccounts) {
+      if (!account.id || account.id <= accountCursor) {
+        throw new Error('Payments escrow account cursor did not advance')
       }
-    `,
-    { indexer, collector: collectorAddress },
-  )
+      accountCursor = account.id
+      accounts.paymentsEscrowAccounts.push(account)
+    }
+    for (const collected of page.graphTallyTokensCollecteds) {
+      if (!collected.id || collected.id <= collectedCursor) {
+        throw new Error('Collected tokens cursor did not advance')
+      }
+      collectedCursor = collected.id
+      accounts.graphTallyTokensCollecteds.push(collected)
+    }
+    accountsDone ||= page.paymentsEscrowAccounts.length < pageSize
+    collectedDone ||= page.graphTallyTokensCollecteds.length < pageSize
+  }
   logger.trace('Payments escrow accounts', {
     indexer,
     collector: collectorAddress,
-    accounts: result.data,
+    block,
+    accounts,
   })
-  if (!result.data) {
-    throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
-  }
-
-  return PaymentsEscrowAccounts.fromResponse(logger, result.data)
+  return PaymentsEscrowAccounts.fromResponse(logger, accounts)
 }
