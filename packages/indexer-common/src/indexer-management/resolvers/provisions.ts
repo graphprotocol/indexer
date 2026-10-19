@@ -162,6 +162,7 @@ export default {
           logger.error('Querying provisions failed', {
             error: result.error,
           })
+          throw result.error
         }
 
         return result.data.provisions.map((provision) => ({
