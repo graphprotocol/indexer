@@ -23,6 +23,7 @@ import {
 import pReduce from 'p-reduce'
 import { SubgraphClient, QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
+import { afterPendingRavCursor, PendingRavCursor } from './pending-rav-cursor'
 import { getEscrowAccounts } from './horizon-escrow-accounts'
 import {
   GraphHorizonContracts,
@@ -37,12 +38,23 @@ const RAV_CHECK_INTERVAL_MS = 900_000
 // 1000 here was leading to http 413 request entity too large
 const PAGE_SIZE = 200
 
+// How many pending RAVs are reconciled per pass. A keyset cursor advances through
+// the value-ordered backlog even when earlier rows remain pending indefinitely.
+const PENDING_RAV_BATCH_SIZE = 1_000
+
+// How many allocation ids go into a single subgraph request. The id filter travels in
+// every request body, so it is chunked to keep requests the size they had when the
+// batch itself was capped at 100 rows (see the http 413 note above).
+const FILTER_CHUNK_SIZE = 100
+
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
   ravRedeemsInvalid: Counter<string>
   ravRedeemsFailed: Counter<string>
   ravsRedeemDuration: Histogram<string>
   ravCollectedFees: Gauge<string>
+  ravsBelowThreshold: Gauge<string>
+  ravsBelowThresholdValueGRT: Gauge<string>
 }
 
 interface TapCollectorOptions {
@@ -59,6 +71,9 @@ interface TapCollectorOptions {
 interface ValidRavs {
   belowThreshold: RavWithAllocation[]
   eligible: RavWithAllocation[]
+  // Sum of what the below threshold RAVs would still pay out, which for TAPv2 is the
+  // aggregate value minus whatever the payer has already collected against it.
+  belowThresholdRemaining: bigint
 }
 
 export interface RavWithAllocation {
@@ -103,6 +118,8 @@ export interface AllocationsResponse {
 }
 
 export class GraphTallyCollector {
+  private pendingRavCursor?: PendingRavCursor
+
   declare logger: Logger
   declare metrics: RavMetrics
   declare models: QueryFeeModels
@@ -162,6 +179,12 @@ export class GraphTallyCollector {
     const notifyAndMapEligible = (signedRavs: ValidRavs) => {
       const logger = this.logger.child({ function: 'startRAVProcessingV2()' })
 
+      // Set every pass, including to 0, so the gauges decay once deferrals clear
+      this.metrics.ravsBelowThreshold.set(signedRavs.belowThreshold.length)
+      this.metrics.ravsBelowThresholdValueGRT.set(
+        parseFloat(formatGRT(signedRavs.belowThresholdRemaining)),
+      )
+
       if (signedRavs.belowThreshold.length > 0) {
         const totalValueGRT = formatGRT(
           signedRavs.belowThreshold.reduce(
@@ -174,6 +197,9 @@ export class GraphTallyCollector {
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           belowThresholdCount: signedRavs.belowThreshold.length,
           totalValueGRT,
+          // What is still collectible on those RAVs, once already collected tokens are
+          // subtracted. This, not totalValueGRT, is the revenue being left on the table.
+          remainingValueGRT: formatGRT(signedRavs.belowThresholdRemaining),
           allocations: signedRavs.belowThreshold.map((signedRav) =>
             collectionIdToAllocationId(signedRav.rav.rav.collectionId),
           ),
@@ -399,12 +425,18 @@ export class GraphTallyCollector {
             })
             if (belowThreshold) {
               results.belowThreshold.push(rav)
+              results.belowThresholdRemaining +=
+                BigInt(rav.rav.rav.valueAggregate) - tokensCollected
             } else {
               results.eligible.push(rav)
             }
             return results
           },
-          { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
+          {
+            belowThreshold: <RavWithAllocation[]>[],
+            eligible: <RavWithAllocation[]>[],
+            belowThresholdRemaining: 0n,
+          },
         )
       },
       {
@@ -414,13 +446,54 @@ export class GraphTallyCollector {
     )
   }
 
-  // redeem only if last is true
-  // Later can add order and limit
+  // Reconcile a bounded sweep, highest value first within each sweep. Redemption
+  // eligibility is still loaded from the entire unredeemed set below; this cursor
+  // only schedules on-chain reconciliation. Restarting begins a fresh sweep.
   private async pendingRAVs(): Promise<ReceiptAggregateVoucherV2[]> {
-    return await this.models.receiptAggregateVouchersV2.findAll({
-      where: { last: true, final: false },
-      limit: 100,
-    })
+    let cursor = this.pendingRavCursor
+    const findBatch = () =>
+      this.models.receiptAggregateVouchersV2.findAll({
+        where: {
+          last: true,
+          final: false,
+          ...(cursor ? afterPendingRavCursor(cursor) : {}),
+        },
+        order: [
+          ['valueAggregate', 'DESC'],
+          ['collectionId', 'ASC'],
+          ['payer', 'ASC'],
+          ['serviceProvider', 'ASC'],
+          ['dataService', 'ASC'],
+        ],
+        limit: PENDING_RAV_BATCH_SIZE,
+      })
+    let ravs = await findBatch()
+    if (ravs.length === 0 && cursor) {
+      // The previous batch may have ended exactly at the boundary, or the tail
+      // may have settled since then. Wrap without wasting a reconciliation pass.
+      cursor = undefined
+      ravs = await findBatch()
+    }
+    const last = ravs[ravs.length - 1]
+    this.pendingRavCursor =
+      ravs.length === PENDING_RAV_BATCH_SIZE
+        ? (
+            [
+              'valueAggregate',
+              'collectionId',
+              'payer',
+              'serviceProvider',
+              'dataService',
+            ] as const
+          ).map((key) => [key, String(last.getDataValue(key))])
+        : undefined
+    if (this.pendingRavCursor) {
+      this.logger.debug(
+        '[TAPv2] Reconciliation batch is full; continuing the backlog on the next pass',
+        { batchSize: PENDING_RAV_BATCH_SIZE },
+      )
+    }
+    return ravs
   }
 
   private async filterAndUpdateRavs(
@@ -555,7 +628,6 @@ export class GraphTallyCollector {
     ravs: ReceiptAggregateVoucherV2[],
   ): Promise<SubgraphResponse> {
     let meta: GraphTallyMeta | undefined = undefined
-    let lastId = ''
     const paymentsEscrowTransactions: GraphTallyTransaction[] = []
 
     const unfinalizedRavsAllocationIds = [
@@ -570,69 +642,87 @@ export class GraphTallyCollector {
       ...new Set(ravs.map((value) => toAddress(value.payer).toLowerCase())),
     ]
 
-    for (;;) {
-      let block: { hash: string } | undefined = undefined
-      if (meta?.block?.hash) {
-        block = {
-          hash: meta?.block?.hash,
+    // chunk() yields nothing for an empty input, but a query must still run in that
+    // case so the caller gets subgraph block metadata back, hence the explicit [[]].
+    const allocationIdChunks =
+      unfinalizedRavsAllocationIds.length === 0
+        ? [[] as string[]]
+        : chunk(unfinalizedRavsAllocationIds, FILTER_CHUNK_SIZE)
+
+    for (const allocationIdsChunk of allocationIdChunks) {
+      let lastId = ''
+      for (;;) {
+        // After the first response, every request (across pages and chunks) is pinned
+        // to that block, so the whole pass sees one consistent snapshot of the chain.
+        let block: { hash: string } | undefined = undefined
+        if (meta?.block?.hash) {
+          block = {
+            hash: meta?.block?.hash,
+          }
         }
-      }
 
-      const result: QueryResult<SubgraphResponse> =
-        await this.networkSubgraph.query<SubgraphResponse>(
-          gql`
-            query paymentsEscrowTransactions(
-              $lastId: String!
-              $pageSize: Int!
-              $block: Block_height
-              $unfinalizedRavsAllocationIds: [String!]!
-              $payerAddresses: [String!]!
-            ) {
-              paymentsEscrowTransactions(
-                first: $pageSize
-                block: $block
-                orderBy: id
-                orderDirection: asc
-                where: {
-                  id_gt: $lastId
-                  type: "redeem"
-                  allocationId_in: $unfinalizedRavsAllocationIds
-                  payer_: { id_in: $payerAddresses }
-                }
+        const result: QueryResult<SubgraphResponse> =
+          await this.networkSubgraph.query<SubgraphResponse>(
+            gql`
+              query paymentsEscrowTransactions(
+                $lastId: String!
+                $pageSize: Int!
+                $block: Block_height
+                $unfinalizedRavsAllocationIds: [String!]!
+                $payerAddresses: [String!]!
               ) {
-                id
-                allocationId
-                timestamp
-                payer {
+                paymentsEscrowTransactions(
+                  first: $pageSize
+                  block: $block
+                  orderBy: id
+                  orderDirection: asc
+                  where: {
+                    id_gt: $lastId
+                    type: "redeem"
+                    allocationId_in: $unfinalizedRavsAllocationIds
+                    payer_: { id_in: $payerAddresses }
+                  }
+                ) {
                   id
-                }
-              }
-              _meta {
-                block {
-                  hash
+                  allocationId
                   timestamp
+                  payer {
+                    id
+                  }
+                }
+                _meta(block: $block) {
+                  block {
+                    hash
+                    timestamp
+                  }
                 }
               }
-            }
-          `,
-          {
-            lastId,
-            pageSize: PAGE_SIZE,
-            block,
-            unfinalizedRavsAllocationIds,
-            payerAddresses,
-          },
-        )
+            `,
+            {
+              lastId,
+              pageSize: PAGE_SIZE,
+              block,
+              unfinalizedRavsAllocationIds: allocationIdsChunk,
+              payerAddresses,
+            },
+          )
 
-      if (!result.data) {
-        throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
+        if (result.error || !result.data) {
+          throw new Error(
+            `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`,
+          )
+        }
+        const pageMeta = result.data._meta
+        if (!pageMeta?.block?.hash || (meta && pageMeta.block.hash !== meta.block.hash)) {
+          throw new Error('Missing or inconsistent block hash in RAV transactions')
+        }
+        meta ??= pageMeta
+        paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
+        if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
+          break
+        }
+        lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
       }
-      meta = result.data._meta
-      paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
-      if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
-        break
-      }
-      lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
     }
 
     return {
@@ -1177,6 +1267,18 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
     help: 'Amount of query fees collected for a rav v2',
     registers: [metrics.registry],
     labelNames: ['collection'],
+  }),
+
+  ravsBelowThreshold: new metrics.client.Gauge({
+    name: `indexer_agent_rav_v2_ravs_below_threshold_${networkIdentifier}`,
+    help: 'Number of pending rav v2s deferred because their collectible value is below the redemption threshold',
+    registers: [metrics.registry],
+  }),
+
+  ravsBelowThresholdValueGRT: new metrics.client.Gauge({
+    name: `indexer_agent_rav_v2_ravs_below_threshold_value_grt_${networkIdentifier}`,
+    help: 'Total GRT still collectible on pending rav v2s deferred below the redemption threshold',
+    registers: [metrics.registry],
   }),
 })
 

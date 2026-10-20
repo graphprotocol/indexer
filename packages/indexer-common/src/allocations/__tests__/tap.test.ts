@@ -25,6 +25,10 @@ import { hexlify, verifyTypedData } from 'ethers'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __DATABASE__: any
 declare const __LOG_LEVEL__: never
+
+// This suite reaches a live RPC endpoint, whose transient connection drops (socket hang
+// up, ECONNRESET) would otherwise fail CI, so failed tests retry up to 2 times.
+jest.retryTimes(2, { logErrorsBeforeRetry: true })
 let logger: Logger
 let tapCollector: TapCollector
 let metrics: Metrics

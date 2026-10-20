@@ -40,14 +40,17 @@ function logWorkTime(
 }
 
 /**
- * Create an eventual that performs the work in the Reducer<number, U> function every `milliseconds` milliseconds.
- * The main difference between this and `timer(...).reduce(...)` is that this function will wait for the previous work to complete before starting the next one.
+ * Create an eventual that runs the reducer immediately, then waits `milliseconds` after each
+ * completed run before starting the next one. The eventual publishes changed results; reducers
+ * should treat the accumulator as immutable so changes can be detected.
  *
  * @param milliseconds number
  * @param reducer Reducer<number, U>
  * @param initial U
  * @returns Eventual<U>
  */
+// Keep T for callers that explicitly supply both type arguments.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function sequentialTimerReduce<T, U>(
   { logger, milliseconds }: TimerTaskContext,
   reducer: Reducer<number, U>,
@@ -59,22 +62,17 @@ export function sequentialTimerReduce<T, U>(
   const caller = stack?.split('\n')[2].trim()
 
   let acc: U = initial
-  let previousT: T | undefined
-  let latestT: T | undefined
 
   function outputReduce(value: U) {
-    previousT = latestT
     acc = value
-    if (!equal(latestT, previousT)) {
-      output.push(value)
-    }
+    output.push(value)
   }
 
   function work() {
     const workStarted = Date.now()
-    const promiseOrT = reducer(acc, workStarted)
-    if (isPromiseLike(promiseOrT)) {
-      promiseOrT.then(
+    const promiseOrU = reducer(acc, workStarted)
+    if (isPromiseLike(promiseOrU)) {
+      promiseOrU.then(
         function onfulfilled(value) {
           outputReduce(value)
           logWorkTime(workStarted, logger, caller, milliseconds)
@@ -87,7 +85,7 @@ export function sequentialTimerReduce<T, U>(
         },
       )
     } else {
-      outputReduce(promiseOrT)
+      outputReduce(promiseOrU)
       logWorkTime(workStarted, logger, caller, milliseconds)
       setTimeout(work, milliseconds)
     }
