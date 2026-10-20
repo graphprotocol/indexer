@@ -8,7 +8,7 @@ import path from 'path'
 export function loadTestYamlConfig() {
   const PUBLIC_JSON_RPC_ENDPOINT = 'https://sepolia-rollup.arbitrum.io/rpc'
   const testProviderUrl =
-    process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
+    process.env.INDEXER_TEST_JRPC_PROVIDER_URL || PUBLIC_JSON_RPC_ENDPOINT
   const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
   /* eslint-disable @typescript-eslint/no-explicit-any */
   function injectApiKey(apiKey: string, keys: string[], yaml: any) {

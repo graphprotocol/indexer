@@ -10,7 +10,10 @@ import {
   Logger,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { Sequelize } from 'sequelize'
+import { Op, Sequelize } from 'sequelize'
+import { buildSchema, DocumentNode, execute, validate } from 'graphql'
+import { SubgraphClient } from '../../subgraph-client'
+import { CombinedError } from '@urql/core'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -282,5 +285,360 @@ describe('pendingRAVs ordering', () => {
     // Assert
     expect(ravs).toHaveLength(1)
     expect(ravs[0].valueAggregate).toEqual(5n)
+  })
+})
+
+describe.each(['v1', 'v2'] as const)('%s bounded reconciliation progress', (version) => {
+  const makeFixture = async (count: number) => {
+    const address = (n: number) => toAddress(n.toString(16).padStart(40, '0'))
+    const shared = {
+      signature: SIGNATURE,
+      timestampNs: 1n,
+      valueAggregate: 7n,
+      last: true,
+      final: false,
+      redeemedAt: null,
+    }
+    if (version === 'v1') {
+      await queryFeeModels.receiptAggregateVouchers.bulkCreate(
+        Array.from({ length: count }, (_, i) => ({
+          ...shared,
+          allocationId: address(Math.floor(i / 4)),
+          senderAddress: address(i % 4),
+        })),
+      )
+    } else {
+      await queryFeeModels.receiptAggregateVouchersV2.bulkCreate(
+        Array.from({ length: count }, (_, i) => ({
+          ...shared,
+          collectionId: `0x${Math.floor(i / 64)
+            .toString(16)
+            .padStart(64, '0')}`,
+          payer: address(Math.floor(i / 16) % 4),
+          serviceProvider: address(Math.floor(i / 4) % 4),
+          dataService: address(i % 4),
+          metadata: '0x',
+        })),
+      )
+    }
+    const collector =
+      version === 'v1'
+        ? Object.assign(Object.create(TapCollector.prototype) as TapCollector, {
+            logger,
+            models: queryFeeModels,
+            finalityTime: 1000,
+          })
+        : Object.assign(
+            Object.create(GraphTallyCollector.prototype) as GraphTallyCollector,
+            { logger, models: queryFeeModels, finalityTime: 1000 },
+          )
+    const model =
+      version === 'v1'
+        ? queryFeeModels.receiptAggregateVouchers
+        : queryFeeModels.receiptAggregateVouchersV2
+    const key = (rav) =>
+      version === 'v1'
+        ? `${rav.allocationId}-${rav.senderAddress}`.toLowerCase()
+        : `${rav.collectionId}-${rav.payer}-${rav.serviceProvider}-${rav.dataService}`.toLowerCase()
+    return { collector, model, key }
+  }
+
+  test('visits all composite-key ties without waiting for earlier RAVs to settle, then wraps', async () => {
+    const { collector, key } = await makeFixture(2003)
+    const first = await collector['pendingRAVs']()
+    const second = await collector['pendingRAVs']()
+    const third = await collector['pendingRAVs']()
+    expect(first).toHaveLength(1000)
+    expect(second).toHaveLength(1000)
+    expect(third).toHaveLength(3)
+    const keys = [...first, ...second, ...third].map(key)
+    expect(new Set(keys).size).toBe(2003)
+    expect(keys).toEqual([...keys].sort())
+    expect((await collector['pendingRAVs']()).map(key)).toEqual(first.map(key))
+  })
+
+  test.each(['stable', 'missing', 'inconsistent', 'partial error'])(
+    'transaction snapshot stays pinned or rejects %s pages',
+    async (mode) => {
+      const { collector } = await makeFixture(0)
+      const rows = Array.from({ length: 250 }, (_, i) => ({
+        allocationId: toAddress(i.toString(16).padStart(40, '0')),
+        collectionId: `0x${i.toString(16).padStart(64, '0')}`,
+        senderAddress: PAYER,
+        payer: PAYER,
+        redeemedAt: null,
+      }))
+      const schema = buildSchema(`
+      input Block_height { hash: String! }
+      input Address_filter { id_in: [String!]! }
+      input Tx_filter { id_gt: String!, type: String!, allocationID_in: [String!]!, sender_: Address_filter! }
+      input Payment_filter { id_gt: String!, type: String!, allocationId_in: [String!]!, payer_: Address_filter! }
+      enum OrderDirection { asc desc }
+      enum Tx_orderBy { id }
+      type Address { id: String! }
+      type Tx { id: String!, allocationID: String!, timestamp: Int!, sender: Address! }
+      type Payment { id: String!, allocationId: String!, timestamp: Int!, payer: Address! }
+      type Block { hash: String!, timestamp: Int! }
+      type Meta { block: Block! }
+      type Query {
+        transactions(first: Int!, block: Block_height, orderBy: Tx_orderBy, orderDirection: OrderDirection, where: Tx_filter!): [Tx!]!
+        paymentsEscrowTransactions(first: Int!, block: Block_height, orderBy: Tx_orderBy, orderDirection: OrderDirection, where: Payment_filter!): [Payment!]!
+        _meta(block: Block_height): Meta!
+      }
+    `)
+      const firstHash = 'first-block'
+      const query = jest.fn(
+        async (document: DocumentNode, variables: Record<string, unknown>) => {
+          expect(validate(schema, document)).toEqual([])
+          const txs = ({ first, where }) =>
+            Array.from({ length: 201 }, (_, i) => ({
+              id: `tx-${i.toString().padStart(4, '0')}`,
+              allocationID: '0x0000000000000000000000000000000000000000',
+              allocationId: '0x0000000000000000000000000000000000000000',
+              sender: { id: PAYER },
+              payer: { id: PAYER },
+              timestamp: 900,
+            }))
+              .filter(
+                (tx) =>
+                  tx.id > where.id_gt &&
+                  (where.allocationID_in ?? where.allocationId_in).includes(
+                    tx.allocationId,
+                  ),
+              )
+              .slice(0, first)
+          const result = await execute({
+            schema,
+            document,
+            variableValues: variables,
+            rootValue: {
+              transactions: txs,
+              paymentsEscrowTransactions: txs,
+              _meta: ({ block }) => ({
+                block: {
+                  hash:
+                    block?.hash ??
+                    (query.mock.calls.length === 1 ? firstHash : 'new-head'),
+                  timestamp:
+                    block?.hash === firstHash || query.mock.calls.length === 1
+                      ? 1000
+                      : 2000,
+                },
+              }),
+            },
+          })
+          expect(result.errors).toBeUndefined()
+          if (query.mock.calls.length === 2) {
+            if (mode === 'missing') delete result.data!._meta
+            if (mode === 'inconsistent')
+              result.data!._meta = { block: { hash: 'wrong-block', timestamp: 2000 } }
+          }
+          return {
+            data: result.data,
+            error:
+              mode === 'partial error' && query.mock.calls.length === 2
+                ? new CombinedError({ graphQLErrors: ['incomplete transaction page'] })
+                : undefined,
+          }
+        },
+      )
+      Object.assign(collector, {
+        tapSubgraph: { query } as unknown as SubgraphClient,
+        networkSubgraph: { query } as unknown as SubgraphClient,
+      })
+      const pending =
+        version === 'v1'
+          ? (collector as TapCollector).findTransactionsForRavs(
+              rows as unknown as Parameters<TapCollector['findTransactionsForRavs']>[0],
+            )
+          : (collector as GraphTallyCollector).findTransactionsForRavs(
+              rows as unknown as Parameters<
+                GraphTallyCollector['findTransactionsForRavs']
+              >[0],
+            )
+      if (mode !== 'stable') {
+        await expect(pending).rejects.toThrow()
+        return
+      }
+      const response = await pending
+      expect(query).toHaveBeenCalledTimes(4)
+      for (const [, variables] of query.mock.calls.slice(1)) {
+        expect(variables.block).toEqual({ hash: firstHash })
+      }
+      expect(response._meta.block).toEqual({ hash: firstHash, timestamp: 1000 })
+    },
+  )
+
+  test('wraps an exact full batch and an empty tail after the boundary row is deleted', async () => {
+    const { collector, key } = await makeFixture(1000)
+    const first = await collector['pendingRAVs']()
+    await first[999].destroy()
+    expect((await collector['pendingRAVs']()).map(key)).toEqual(
+      first.slice(0, 999).map(key),
+    )
+  })
+
+  test('does not advance past a failed database read', async () => {
+    const { collector, model, key } = await makeFixture(1001)
+    const first = await collector['pendingRAVs']()
+    const find = jest
+      .spyOn(model, 'findAll')
+      .mockRejectedValueOnce(new Error('database unavailable'))
+    await expect(collector['pendingRAVs']()).rejects.toThrow('database unavailable')
+    find.mockRestore()
+    const next = await collector['pendingRAVs']()
+    expect(next).toHaveLength(1)
+    expect(first.map(key)).not.toContain(key(next[0]))
+  })
+
+  test('revisits rows whose value moves before the cursor on the next sweep', async () => {
+    const { collector, key } = await makeFixture(1002)
+    await collector['pendingRAVs']()
+    const tail = await collector['pendingRAVs']()
+    await tail[1].update({ valueAggregate: 100n })
+    const next = await collector['pendingRAVs']()
+    expect(key(next[0])).toBe(key(tail[1]))
+    expect(next[0].valueAggregate).toBe(100n)
+  })
+
+  test('continues across value boundaries and retains unredeemed rows outside the reconciliation batch', async () => {
+    const { collector, key } = await makeFixture(1002)
+    const first = await collector['pendingRAVs']()
+    await first[0].update({ valueAggregate: 20n })
+    const tail = await collector['pendingRAVs']()
+    await tail[1].update({ valueAggregate: 1n })
+    // Start a fresh scan, then cross from 7 to 1 without duplicates or omissions.
+    const next = await collector['pendingRAVs']()
+    const last = await collector['pendingRAVs']()
+    expect(next[0].valueAggregate).toBe(20n)
+    expect(last.map((rav) => rav.valueAggregate)).toEqual([7n, 1n])
+    expect(new Set([...next, ...last].map(key)).size).toBe(1002)
+
+    // Reconciliation bounds do not become redemption eligibility bounds.
+    Object.assign(collector, {
+      findTransactionsForRavs: jest.fn().mockResolvedValue({
+        transactions: [],
+        paymentsEscrowTransactions: [],
+        _meta: { block: { timestamp: 200, hash: 'block' } },
+      }),
+    })
+    const eligible =
+      version === 'v1'
+        ? await (collector as TapCollector)['filterAndUpdateRavs'](
+            last as Parameters<TapCollector['markRavsInTransactionsAsRedeemed']>[1],
+          )
+        : await (collector as GraphTallyCollector)['filterAndUpdateRavs'](
+            last as Parameters<
+              GraphTallyCollector['markRavsInTransactionsAsRedeemed']
+            >[1],
+          )
+    expect(eligible).toHaveLength(1002)
+  })
+
+  test('propagates observed-redemption write failures without finalizing or reloading eligible rows', async () => {
+    const { collector, model } = await makeFixture(1)
+    const rows = await collector['pendingRAVs']()
+    const failure = new Error('redemption write failed')
+    const finalize = jest.fn()
+    Object.assign(collector, {
+      findTransactionsForRavs: jest.fn().mockResolvedValue({
+        _meta: { block: { timestamp: 200, hash: 'block' } },
+      }),
+      markRavsInTransactionsAsRedeemed: jest.fn().mockRejectedValue(failure),
+      markRavsAsFinal: finalize,
+    })
+    const reload = jest.spyOn(model, 'findAll')
+    try {
+      const pending =
+        version === 'v1'
+          ? (collector as TapCollector)['filterAndUpdateRavs'](
+              rows as Parameters<TapCollector['markRavsInTransactionsAsRedeemed']>[1],
+            )
+          : (collector as GraphTallyCollector)['filterAndUpdateRavs'](
+              rows as Parameters<
+                GraphTallyCollector['markRavsInTransactionsAsRedeemed']
+              >[1],
+            )
+      await expect(pending).rejects.toBe(failure)
+      expect(finalize).not.toHaveBeenCalled()
+      expect(reload).not.toHaveBeenCalled()
+    } finally {
+      reload.mockRestore()
+    }
+  })
+
+  test('awaits observed redemption writes before finalization and the eligibility reload', async () => {
+    const { collector } = await makeFixture(1)
+    const rows = await collector['pendingRAVs']()
+    const row = rows[0]
+    const response =
+      version === 'v1'
+        ? {
+            transactions: [
+              {
+                id: 'tx',
+                allocationID: row['allocationId'],
+                sender: { id: row['senderAddress'] },
+                timestamp: 100,
+              },
+            ],
+            _meta: { block: { timestamp: 200, hash: 'block' } },
+          }
+        : {
+            paymentsEscrowTransactions: [
+              {
+                id: 'tx',
+                allocationId: `0x${row['collectionId'].slice(-40)}`,
+                payer: { id: row['payer'] },
+                timestamp: 100,
+              },
+            ],
+            _meta: { block: { timestamp: 200, hash: 'block' } },
+          }
+    let release!: () => void
+    let started!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const entered = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const write = collector['markRavAsRedeemed'].bind(collector)
+    const finalize = jest.fn(collector['markRavsAsFinal'].bind(collector))
+    Object.assign(collector, {
+      findTransactionsForRavs: jest.fn().mockResolvedValue(response),
+      markRavsAsFinal: finalize,
+      markRavAsRedeemed: async (...args: Parameters<typeof write>) => {
+        started()
+        await gate
+        await write(...args)
+      },
+    })
+    // Call through the real reconciliation and real PostgreSQL update. The gate
+    // controls the write, not a timer or a guessed scheduling delay.
+    const pending =
+      version === 'v1'
+        ? (collector as TapCollector)['filterAndUpdateRavs'](
+            rows as Parameters<TapCollector['markRavsInTransactionsAsRedeemed']>[1],
+          )
+        : (collector as GraphTallyCollector)['filterAndUpdateRavs'](
+            rows as Parameters<
+              GraphTallyCollector['markRavsInTransactionsAsRedeemed']
+            >[1],
+          )
+    try {
+      await entered
+      expect(finalize).not.toHaveBeenCalled()
+    } finally {
+      release()
+      await pending
+    }
+    expect(await pending).toHaveLength(0)
+    const options = { where: { redeemedAt: { [Op.ne]: null } } }
+    expect(
+      await (version === 'v1'
+        ? queryFeeModels.receiptAggregateVouchers.count(options)
+        : queryFeeModels.receiptAggregateVouchersV2.count(options)),
+    ).toBe(1)
   })
 })

@@ -23,6 +23,7 @@ import {
 import pReduce from 'p-reduce'
 import { SubgraphClient, QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
+import { afterPendingRavCursor, PendingRavCursor } from './pending-rav-cursor'
 import { getEscrowAccounts } from './horizon-escrow-accounts'
 import {
   GraphHorizonContracts,
@@ -37,8 +38,8 @@ const RAV_CHECK_INTERVAL_MS = 900_000
 // 1000 here was leading to http 413 request entity too large
 const PAGE_SIZE = 200
 
-// How many pending RAVs are reconciled per pass. Rows beyond this stay pending and are
-// picked up on later passes once higher value rows settle and leave the set.
+// How many pending RAVs are reconciled per pass. A keyset cursor advances through
+// the value-ordered backlog even when earlier rows remain pending indefinitely.
 const PENDING_RAV_BATCH_SIZE = 1_000
 
 // How many allocation ids go into a single subgraph request. The id filter travels in
@@ -117,6 +118,8 @@ export interface AllocationsResponse {
 }
 
 export class GraphTallyCollector {
+  private pendingRavCursor?: PendingRavCursor
+
   declare logger: Logger
   declare metrics: RavMetrics
   declare models: QueryFeeModels
@@ -443,18 +446,50 @@ export class GraphTallyCollector {
     )
   }
 
-  // redeem only if last is true
-  // Highest value first, so that RAVs worth collecting are never crowded out of the
-  // batch by dust that sits below the redemption threshold indefinitely.
+  // Reconcile a bounded sweep, highest value first within each sweep. Redemption
+  // eligibility is still loaded from the entire unredeemed set below; this cursor
+  // only schedules on-chain reconciliation. Restarting begins a fresh sweep.
   private async pendingRAVs(): Promise<ReceiptAggregateVoucherV2[]> {
-    const ravs = await this.models.receiptAggregateVouchersV2.findAll({
-      where: { last: true, final: false },
-      order: [['valueAggregate', 'DESC']],
-      limit: PENDING_RAV_BATCH_SIZE,
-    })
-    if (ravs.length === PENDING_RAV_BATCH_SIZE) {
-      this.logger.warn(
-        '[TAPv2] Pending RAV batch is full, RAVs below the value cutoff are not reconciled this pass',
+    let cursor = this.pendingRavCursor
+    const findBatch = () =>
+      this.models.receiptAggregateVouchersV2.findAll({
+        where: {
+          last: true,
+          final: false,
+          ...(cursor ? afterPendingRavCursor(cursor) : {}),
+        },
+        order: [
+          ['valueAggregate', 'DESC'],
+          ['collectionId', 'ASC'],
+          ['payer', 'ASC'],
+          ['serviceProvider', 'ASC'],
+          ['dataService', 'ASC'],
+        ],
+        limit: PENDING_RAV_BATCH_SIZE,
+      })
+    let ravs = await findBatch()
+    if (ravs.length === 0 && cursor) {
+      // The previous batch may have ended exactly at the boundary, or the tail
+      // may have settled since then. Wrap without wasting a reconciliation pass.
+      cursor = undefined
+      ravs = await findBatch()
+    }
+    const last = ravs[ravs.length - 1]
+    this.pendingRavCursor =
+      ravs.length === PENDING_RAV_BATCH_SIZE
+        ? (
+            [
+              'valueAggregate',
+              'collectionId',
+              'payer',
+              'serviceProvider',
+              'dataService',
+            ] as const
+          ).map((key) => [key, String(last.getDataValue(key))])
+        : undefined
+    if (this.pendingRavCursor) {
+      this.logger.debug(
+        '[TAPv2] Reconciliation batch is full; continuing the backlog on the next pass',
         { batchSize: PENDING_RAV_BATCH_SIZE },
       )
     }
@@ -478,7 +513,7 @@ export class GraphTallyCollector {
     })
 
     // check for redeemed ravs in tx list but not marked as redeemed in our database
-    this.markRavsInTransactionsAsRedeemed(subgraphResponse, ravsLastNotFinal)
+    await this.markRavsInTransactionsAsRedeemed(subgraphResponse, ravsLastNotFinal)
 
     // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
     const nonRedeemedRavs = ravsLastNotFinal
@@ -621,7 +656,7 @@ export class GraphTallyCollector {
                     id
                   }
                 }
-                _meta {
+                _meta(block: $block) {
                   block {
                     hash
                     timestamp
@@ -638,10 +673,16 @@ export class GraphTallyCollector {
             },
           )
 
-        if (!result.data) {
-          throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
+        if (result.error || !result.data) {
+          throw new Error(
+            `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`,
+          )
         }
-        meta = result.data._meta
+        const pageMeta = result.data._meta
+        if (!pageMeta?.block?.hash || (meta && pageMeta.block.hash !== meta.block.hash)) {
+          throw new Error('Missing or inconsistent block hash in RAV transactions')
+        }
+        meta ??= pageMeta
         paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
         if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
           break
