@@ -4,6 +4,7 @@
 import { defineQueryFeeModels, QueryFeeModels } from '../../query-fees/models'
 import { TapCollector } from '../tap-collector'
 import { GraphTallyCollector } from '../graph-tally-collector'
+import { PaymentsEscrowAccounts } from '../horizon-escrow-accounts'
 import {
   connectDatabase,
   createLogger,
@@ -14,6 +15,29 @@ import { Op, Sequelize } from 'sequelize'
 import { buildSchema, DocumentNode, execute, validate } from 'graphql'
 import { SubgraphClient } from '../../subgraph-client'
 import { CombinedError } from '@urql/core'
+
+// GraphTallyCollector.filterAndUpdateRavs reads tokensCollected from the network
+// subgraph to decide settlement, so the v2 fixtures stub that lookup.
+jest.mock('../horizon-escrow-accounts', () => {
+  const actual = jest.requireActual('../horizon-escrow-accounts')
+  return { ...actual, getEscrowAccounts: jest.fn() }
+})
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { getEscrowAccounts } = require('../horizon-escrow-accounts')
+
+const mockTokensCollected = (
+  collected: { payer: string; collectionId: string; tokens: bigint }[],
+) =>
+  getEscrowAccounts.mockResolvedValue(
+    PaymentsEscrowAccounts.fromResponse(logger, {
+      paymentsEscrowAccounts: [],
+      graphTallyTokensCollecteds: collected.map((entry) => ({
+        tokens: entry.tokens.toString(),
+        collectionId: entry.collectionId,
+        payer: { id: entry.payer },
+      })),
+    }),
+  )
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -330,8 +354,16 @@ describe.each(['v1', 'v2'] as const)('%s bounded reconciliation progress', (vers
           })
         : Object.assign(
             Object.create(GraphTallyCollector.prototype) as GraphTallyCollector,
-            { logger, models: queryFeeModels, finalityTime: 1000 },
+            {
+              logger,
+              models: queryFeeModels,
+              finalityTime: 1000,
+              contracts: { GraphTallyCollector: { target: address(0xc0) } },
+              networkSubgraph: {},
+              indexerAddress: address(0x1d),
+            },
           )
+    mockTokensCollected([])
     const model =
       version === 'v1'
         ? queryFeeModels.receiptAggregateVouchers
@@ -595,6 +627,12 @@ describe.each(['v1', 'v2'] as const)('%s bounded reconciliation progress', (vers
             ],
             _meta: { block: { timestamp: 200, hash: 'block' } },
           }
+    if (version === 'v2') {
+      // Fully collected on chain, so the observed transaction settles the RAV.
+      mockTokensCollected([
+        { payer: row['payer'], collectionId: row['collectionId'], tokens: 7n },
+      ])
+    }
     let release!: () => void
     let started!: () => void
     const gate = new Promise<void>((resolve) => {
