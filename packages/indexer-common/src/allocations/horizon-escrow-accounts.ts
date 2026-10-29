@@ -182,8 +182,10 @@ export const getEscrowAccounts = async (
         collector: collectorAddress,
         accountCursor,
         collectedCursor,
-        accountsFirst: accountsDone ? 0 : pageSize,
-        collectedFirst: collectedDone ? 0 : pageSize,
+        // Graph Node rejects `first: 0`. A finished entity's cursor is already past
+        // its last row at the pinned block, so a single-row page comes back empty.
+        accountsFirst: accountsDone ? 1 : pageSize,
+        collectedFirst: collectedDone ? 1 : pageSize,
         block,
       },
     )
