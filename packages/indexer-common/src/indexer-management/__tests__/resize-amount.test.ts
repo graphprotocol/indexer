@@ -1,4 +1,4 @@
-import { createLogger, Logger } from '@graphprotocol/common-ts'
+import { createLogger, Logger, parseGRT } from '@graphprotocol/common-ts'
 import { AllocationManager } from '../allocations'
 import { IndexerErrorCode } from '../../errors'
 
@@ -12,11 +12,12 @@ const protocolNetwork = 'eip155:42161'
 // Only the on-chain allocation lookup is reached when preparing a resize, so the rest of
 // the manager's dependencies can stay empty. The allocation holds 5,000 GRT unless a test
 // says otherwise.
-const GRT = 10n ** 18n
-
 const buildManager = (
   logger: Logger,
-  { closedAt = 0n, tokens = 5_000n * GRT }: { closedAt?: bigint; tokens?: bigint } = {},
+  {
+    closedAt = 0n,
+    tokens = parseGRT('5000'),
+  }: { closedAt?: bigint; tokens?: bigint } = {},
 ): { manager: AllocationManager; getAllocation: jest.Mock } => {
   const getAllocation = jest.fn().mockResolvedValue({ closedAt, indexer, tokens })
   const network = { contracts: { SubgraphService: { getAllocation } } }
@@ -60,7 +61,7 @@ describe('AllocationManager.prepareResizeParams amount checks', () => {
 
   it('accepts a positive amount', async () => {
     const { manager } = buildManager(logger)
-    const newAmount = 10_000n * GRT
+    const newAmount = parseGRT('10000')
 
     await expect(
       manager.prepareResizeParams(logger, allocationId, newAmount, 2, protocolNetwork),
@@ -87,10 +88,16 @@ describe('AllocationManager.prepareResizeParams amount checks', () => {
   })
 
   it('rejects any resize to the size the allocation already has', async () => {
-    const { manager } = buildManager(logger, { tokens: 5_000n * GRT })
+    const { manager } = buildManager(logger, { tokens: parseGRT('5000') })
 
     await expect(
-      manager.prepareResizeParams(logger, allocationId, 5_000n * GRT, 6, protocolNetwork),
+      manager.prepareResizeParams(
+        logger,
+        allocationId,
+        parseGRT('5000'),
+        6,
+        protocolNetwork,
+      ),
     ).rejects.toMatchObject({ code: IndexerErrorCode.IE061 })
   })
 
