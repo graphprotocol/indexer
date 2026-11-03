@@ -1469,11 +1469,12 @@ export class AllocationManager {
       throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
     }
 
-    // Validate amount is positive
-    if (newAmount <= 0n) {
+    // Resizing to 0 is allowed: the SubgraphService keeps the allocation open with no
+    // stake, and whatever it had earned stays claimable by its next POI
+    if (newAmount < 0n) {
       throw indexerError(
         IndexerErrorCode.IE061,
-        `Invalid resize amount: ${newAmount.toString()}. Amount must be positive.`,
+        `Invalid resize amount: ${newAmount.toString()}. Amount cannot be negative.`,
       )
     }
 
