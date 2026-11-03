@@ -44,7 +44,7 @@ Options:
 - `-o, --output table|json|yaml` — output format (default `table`).
 - `-w, --wrap [N]` — wrap output to width `N`.
 
-Each row reports: `id`, `payer`, `indexer`, `allocationId`, `subgraphDeploymentId`, `state`, `acceptedAt`, `lastCollectionAt`, `endsAt`, `tokensPerSecond`, `tokensCollected`, `canceledAt`, `canceledBy`, `protocolNetwork`.
+A list shows `id`, `subgraphDeploymentId`, `allocationId`, `payer`, `state`, `acceptedAt`, `endsAt`, `tokensCollected`, `protocolNetwork`. Querying a single `<agreement-id>` additionally shows `indexer`, `lastCollectionAt`, `tokensPerSecond`, `canceledAt` and `canceledBy`.
 
 ## Decline or cancel an agreement
 
@@ -68,4 +68,4 @@ When the deployment has an active DIPS agreement, this is rejected — the alloc
 graph indexer allocations close <id> <poi> <blockNumber> <publicPOI> --force
 ```
 
-> ⚠️ A force-close cancels the DIPS agreement on-chain as part of the same transaction (the `SubgraphService` contract auto-cancels active agreements when the backing allocation is closed). Use it only when the intent is to stop fulfilling the agreement entirely; for an orderly opt-out, prefer setting a `never` rule, which runs a best-effort final collection first.
+> ⚠️ A force-close bypasses only the agent's check. On-chain, the `SubgraphService` contract settles the agreement inside the close transaction: it either cancels the active agreement, or — when its close guard is enabled — reverts the close with `SubgraphServiceAllocationHasActiveAgreement`, in which case the CLI points you to `graph indexer rules never <deployment>`. Use a force-close only when the intent is to stop fulfilling the agreement entirely; for an orderly opt-out, prefer setting a `never` rule, which runs a best-effort final collection and cancels the agreement first.

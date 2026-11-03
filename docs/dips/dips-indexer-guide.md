@@ -18,7 +18,7 @@ For all configuration options and day-to-day CLI actions, see the [quick referen
 - **Collecting** — at intervals, the indexer-agent collects the payment accrued so far.
 - **Ended** — the agreement was cancelled (by the indexer or the payer) or reached its end time; collection stops.
 
-**Long-lived allocations.** A DIPS agreement is backed by a long-lived allocation that doesn't expire. Payments are collected on-chain while the allocation remains open.
+**Long-lived allocations.** A DIPS agreement is backed by a long-lived allocation that the agent keeps open. Its lifetime is set to the agreement's `maxSecondsPerCollection` (converted to epochs, rounded up, minimum one epoch); when it elapses the agent presents a POI and keeps the allocation open rather than closing it. Payments are collected on-chain while the allocation remains open.
 
 **Collection window.** Each agreement specifies a minimum and maximum time between collections. The indexer-agent collects somewhere inside that window; collecting earlier is safer (fees are banked sooner), collecting later means fewer transactions. Where in the window it aims is tunable (see [Tuning](#tuning)).
 
@@ -43,7 +43,7 @@ Enable DIPS and configure the stack (see [Enable DIPS](#enable-dips)); the accep
 | **New income stream** | Payers pay an indexer directly to index a deployment. | Enable DIPS to opt in. |
 | **Receiving agreements** | Proposals are pushed to the indexer-service and queued for the agent. | Run indexer-service with its DIPS port reachable by the Dipper. |
 | **Accepting agreements** | The agent verifies and accepts valid proposals on-chain. | None — automatic. |
-| **Allocations** | Each accepted agreement is backed by a long-lived allocation that doesn't expire and isn't auto-closed. | Don't close it manually; `unallocate` is blocked unless forced. |
+| **Allocations** | Each accepted agreement is backed by a long-lived allocation that is kept open, presenting a POI about once per collection window. | Don't close it manually; `unallocate` and `allocations close` are blocked unless forced. |
 | **Indexing rules** | The agent creates a `dips` indexing rule per agreement deployment. | None. To refuse a deployment, set a `never` or `offchain` rule. |
 | **Collecting payments** | The agent collects on-chain periodically within the agreement's window, with slippage protection. | None — tune with the `--dips-collection-*` options. |
 | **Tracking agreements** | The agent reads agreement state from a new indexing-payments subgraph. | Configure the indexing-payments subgraph (see [Enable DIPS](#enable-dips)). |
@@ -75,7 +75,7 @@ At minimum, set `--enable-dips true` and one of the indexing-payments subgraph o
 ### Restart and verify
 
 1. Restart the indexer-agent with the new configuration. If `--indexing-payments-subgraph-deployment` is set, the agent indexes that deployment automatically; with `--indexing-payments-subgraph-endpoint` it queries the remote endpoint and indexes nothing locally.
-2. Confirm DIPS is active in the agent logs — DIPS reconciliation appears each cycle, e.g. `Ensuring indexing rules for DIPs`.
+2. Confirm DIPS is active in the agent logs. At the default log level, proposal processing logs `Processing pending RCA proposals for on-chain acceptance` and new rules log `Creating DIPS indexing rule for deployment …`. With debug logging enabled, DIPS reconciliation also appears each cycle as `Ensuring indexing rules for DIPs`.
 3. Once an agreement is accepted, a `dips` indexing rule and an allocation appear for that deployment.
 
 ## Operation
@@ -85,7 +85,7 @@ Once enabled, DIPS work runs in two places:
 - A **dedicated acceptance loop** polls for queued proposals every `--dips-acceptance-interval` seconds (default `5`). For each proposal it checks the deadline, verifies the on-chain offer, and accepts on-chain. If an allocation already exists for the deployment it is reused; otherwise the agent opens a new allocation and accepts in a single transaction.
 - The **main reconciliation cycle** handles the rest:
   - **Ensures indexing rules** — creates a `dips` rule for every deployment with a pending proposal or active agreement, and removes rules for deployments no longer covered.
-  - **Collects payments** — for each active agreement due within its collection window, it submits an on-chain collection with a recent-block POI and the deployment's entity count, applying the configured slippage limit.
+  - **Collects payments** — for each active agreement due within its collection window, it submits an on-chain collection with a POI and the deployment's entity count, applying the configured slippage limit. The POI references a block on the chain the deployment indexes (its indexed head, minus a small offset), not the protocol chain.
 
 All of this is automatic. The rest of this section covers the few things an indexer controls.
 
@@ -111,7 +111,7 @@ Because reallocation is no longer needed to collect, the `graph indexer allocati
 
 ### Long-lived allocations are protected
 
-A deployment under an active DIPS agreement is backed by an allocation the agent keeps open. To avoid accidentally breaking an agreement, the agent **rejects an `unallocate` action** for such a deployment unless `force` is passed. Closing the allocation prevents fulfilling the agreement, so do it only deliberately.
+A deployment under an active DIPS agreement is backed by an allocation the agent keeps open. To avoid accidentally breaking an agreement, the agent **rejects closing that allocation** — both a queued `unallocate` action and a direct `graph indexer allocations close` — unless `force` is passed. Closing the allocation prevents fulfilling the agreement, so do it only deliberately.
 
 Protection lasts as long as the agreement is still on-chain collectable. For a payer-cancelled agreement the agent keeps protecting the allocation until the collection window is drained on-chain, then lets the allocation close through the normal lifecycle — so unpaid indexing stops on its own once there's nothing left to collect.
 
@@ -123,7 +123,7 @@ To decline a deployment, set a `never` rule for it:
 graph indexer rules stop <deployment-id>   # 'never' is an alias for 'stop'
 ```
 
-The agent then skips the deployment, and if an agreement is already active for it, runs a best-effort final collection and **cancels the agreement on-chain** on its next cycle. An `offchain` rule has the same opt-out effect.
+The agent then rejects pending and future proposals for the deployment (reason `deployment blocklisted`), and if an agreement is already active for it, runs a best-effort final collection and **cancels the agreement on-chain** on its next cycle. An `offchain` rule has the same opt-out effect.
 
 > ⚠️ This is the agent-side control to refuse a deployment outright. It's separate from the indexer-service rejecting proposals priced below the indexer's minimum.
 
@@ -131,7 +131,8 @@ The agent then skips the deployment, and if an agreement is already active for i
 
 - Agent logs for the DIPS work: rule reconciliation, proposal acceptance, and collections (including any throttled retries).
 - Allocations for DIPS deployments, via the CLI or the network subgraph.
-- Failed collections — a deterministic contract error throttles retries rather than cancelling, so persistent failures are worth investigating.
+- Failed collections — a collection error throttles retries rather than cancelling, so persistent failures are worth investigating.
+- Rejected proposals — a contract revert during acceptance rejects the proposal outright (no retry); only transient errors are retried.
 - Indexing-payments subgraph health — if it falls more than ~5 minutes behind chain head, the agent skips the DIPS rule reaper to avoid wrongly dropping rules for live agreements, and logs a warning (see [Common errors](./dips-common-errors.md#indexing-payments-subgraph-stale--rule-cleanup-skipped)).
 
 ## Tuning

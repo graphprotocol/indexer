@@ -2,7 +2,9 @@
 
 Failure modes the indexer may see when running DIPS, what they mean, and how to resolve them. For an overview of how DIPS works see the [main guide](./dips-indexer-guide.md); for config and CLI actions see the [quick reference](./dips-quick-reference.md).
 
-> ⚠️ Most DIPS failures the agent encounters during `accept` and `collect` are **deterministic contract errors**. The agent does not cancel agreements on these — it throttles retries and keeps trying on the next cycle, so transient causes recover automatically. Persistent failures need investigation.
+> ⚠️ Most DIPS failures the agent encounters during `accept` and `collect` are **deterministic contract errors**, and the two paths handle them differently:
+> - **Collect** — the agent does not cancel the agreement. It throttles retries and keeps trying on later cycles, so transient causes recover automatically. Persistent failures need investigation.
+> - **Accept** — a contract revert (or an ABI mismatch) marks the proposal `rejected` and removes its DIPS rule; the agent does not retry it. Only transient errors (RPC, network) are retried.
 
 ## `RecurringCollectorExcessiveSlippage`
 
@@ -52,7 +54,7 @@ The agent's transaction manager runs a pre-flight check before each `collect`. I
 
 ## Proposal stays pending: `not_yet`
 
-The agent logs `Offer not yet on subgraph; leaving proposal pending`. The indexing-payments subgraph hasn't seen the on-chain `offer` entity for this agreement yet. Almost always transient subgraph lag. Persistent occurrences mean the subgraph isn't progressing — check that the indexing-payments subgraph is healthy and synced.
+The agent logs `Offer not yet on subgraph; leaving proposal pending` (debug level). The indexing-payments subgraph hasn't seen the on-chain `offer` entity for this agreement yet. Almost always transient subgraph lag. Persistent occurrences mean the subgraph isn't progressing — check that the indexing-payments subgraph is healthy and synced.
 
 ## Proposal rejected: `offer_hash_mismatch`
 
@@ -62,6 +64,10 @@ The on-chain `offerHash` for the agreement doesn't match the RCA hash the agent 
 
 The agent picked up a proposal whose `deadline` was already past. Marked `rejected` and the DIPS rule is cleaned up. Most often caused by the proposal sitting too long in the queue — possible if the agent was stopped, or if `--dips-acceptance-interval` was much longer than the proposal's deadline. Default is `5`s, which is fine.
 
+## Proposal rejected: `deployment blocklisted`
+
+The deployment has a `never` or `offchain` indexing rule, so the agent rejects the proposal instead of accepting it. This is the opt-out working as intended (see [Declining a deployment](./dips-indexer-guide.md#declining-a-deployment-opt-out)). If it's unexpected, check the deployment's rule with `graph indexer rules get <deployment-id>`.
+
 ## Indexing-payments subgraph stale — rule cleanup skipped
 
 The agent logs `Skipping DIPS rule cleanup: indexing-payments subgraph is stale or unreadable`. The agent checks the indexing-payments subgraph's latest indexed block; if it lags chain head by more than 5 minutes, the DIPS rule reaper is skipped for that cycle so it can't wrongly delete rules for agreements that are actually live (the agent treats a stale subgraph as "list of agreements is incomplete"). Acceptance and collection are unaffected; only rule cleanup pauses.
@@ -70,4 +76,8 @@ The agent logs `Skipping DIPS rule cleanup: indexing-payments subgraph is stale 
 
 ## Agent log: `Could not get POI for agreement, using zero POI`
 
-The agent couldn't fetch a POI from Graph Node for the recent block it picked. It proceeds with a zero POI; the contract accepts it and the collection still settles. Disputable, however — sustained occurrences point to the deployment not being indexed or being behind chain head. Confirm the deployment is healthy in Graph Node.
+The agent couldn't fetch a POI from Graph Node for the block it picked (the deployment's indexed head on its own chain, minus a small offset). It proceeds with a zero POI; the contract accepts it and the collection still settles. Disputable, however — sustained occurrences point to the deployment not being indexed properly. Confirm the deployment is healthy in Graph Node.
+
+## Collection fails: `Deployment <id> has no indexed block to reference a POI against`
+
+Graph Node reports no indexed block for the agreement's deployment, so the agent can't pick a POI block and the collection fails. Like other collection failures it is throttled and retried on later cycles. Usually the deployment hasn't started syncing yet or isn't deployed on this Graph Node — check its indexing status.
