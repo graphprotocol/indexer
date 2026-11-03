@@ -10,12 +10,15 @@ const allocationId = '0x000000000000000000000000000000000000000a'
 const protocolNetwork = 'eip155:42161'
 
 // Only the on-chain allocation lookup is reached when preparing a resize, so the rest of
-// the manager's dependencies can stay empty.
+// the manager's dependencies can stay empty. The allocation holds 5,000 GRT unless a test
+// says otherwise.
+const GRT = 10n ** 18n
+
 const buildManager = (
   logger: Logger,
-  closedAt = 0n,
+  { closedAt = 0n, tokens = 5_000n * GRT }: { closedAt?: bigint; tokens?: bigint } = {},
 ): { manager: AllocationManager; getAllocation: jest.Mock } => {
-  const getAllocation = jest.fn().mockResolvedValue({ closedAt, indexer })
+  const getAllocation = jest.fn().mockResolvedValue({ closedAt, indexer, tokens })
   const network = { contracts: { SubgraphService: { getAllocation } } }
   const manager = new AllocationManager(
     logger,
@@ -57,25 +60,42 @@ describe('AllocationManager.prepareResizeParams amount checks', () => {
 
   it('accepts a positive amount', async () => {
     const { manager } = buildManager(logger)
-    const newAmount = 10_000n * 10n ** 18n
+    const newAmount = 10_000n * GRT
 
     await expect(
       manager.prepareResizeParams(logger, allocationId, newAmount, 2, protocolNetwork),
     ).resolves.toMatchObject({ newAmount })
   })
 
-  it('rejects a negative amount with IE061', async () => {
-    const { manager } = buildManager(logger)
+  it('rejects a negative amount with IE061 before reading the allocation', async () => {
+    const { manager, getAllocation } = buildManager(logger)
 
     // The manager throws through the package's built entry point, so its error class is a
     // different copy from the one in src; the error code is what identifies it
     await expect(
       manager.prepareResizeParams(logger, allocationId, -1n, 3, protocolNetwork),
     ).rejects.toMatchObject({ code: IndexerErrorCode.IE061 })
+    expect(getAllocation).not.toHaveBeenCalled()
+  })
+
+  it('rejects a resize to 0 on an allocation that already holds 0 GRT', async () => {
+    const { manager } = buildManager(logger, { tokens: 0n })
+
+    await expect(
+      manager.prepareResizeParams(logger, allocationId, 0n, 5, protocolNetwork),
+    ).rejects.toMatchObject({ code: IndexerErrorCode.IE061 })
+  })
+
+  it('rejects any resize to the size the allocation already has', async () => {
+    const { manager } = buildManager(logger, { tokens: 5_000n * GRT })
+
+    await expect(
+      manager.prepareResizeParams(logger, allocationId, 5_000n * GRT, 6, protocolNetwork),
+    ).rejects.toMatchObject({ code: IndexerErrorCode.IE061 })
   })
 
   it('still rejects a resize to 0 on an allocation that has closed', async () => {
-    const { manager } = buildManager(logger, 123n)
+    const { manager } = buildManager(logger, { closedAt: 123n })
 
     await expect(
       manager.prepareResizeParams(logger, allocationId, 0n, 4, protocolNetwork),

@@ -1462,6 +1462,15 @@ export class AllocationManager {
       newAmount: newAmount.toString(),
     })
 
+    // Resizing to 0 is allowed: the SubgraphService keeps the allocation open with no
+    // stake, and what it had earned stays claimable by its next POI unless it is stale
+    if (newAmount < 0n) {
+      throw indexerError(
+        IndexerErrorCode.IE061,
+        `Invalid resize amount: ${newAmount.toString()}. Amount cannot be negative.`,
+      )
+    }
+
     // Validate the allocation is still active on chain
     const allocationData =
       await this.network.contracts.SubgraphService.getAllocation(allocationID)
@@ -1469,12 +1478,12 @@ export class AllocationManager {
       throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
     }
 
-    // Resizing to 0 is allowed: the SubgraphService keeps the allocation open with no
-    // stake, and whatever it had earned stays claimable by its next POI
-    if (newAmount < 0n) {
+    // The contract reverts a resize to the size the allocation already has, and that
+    // revert would fail every other action sent in the same multicall
+    if (newAmount === allocationData.tokens) {
       throw indexerError(
         IndexerErrorCode.IE061,
-        `Invalid resize amount: ${newAmount.toString()}. Amount cannot be negative.`,
+        `Invalid resize amount: allocation already holds ${formatGRT(newAmount)} GRT.`,
       )
     }
 
