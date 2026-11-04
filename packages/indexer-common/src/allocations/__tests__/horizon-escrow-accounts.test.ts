@@ -11,8 +11,9 @@ const blockHash = `0x${'a'.repeat(64)}`
 const payer = (n: number) => `0x${n.toString(16).padStart(40, '0')}`
 const collection = (n: number) => `0x${n.toString(16).padStart(64, '0')}`
 
-// Model Graph Node's default first: 100, keyset filters and block arguments. Execute
-// the real query so omitting first/orderBy/block cannot accidentally pass the mock.
+// Model Graph Node's default first: 100, its accepted first range, keyset filters and
+// block arguments. Execute the real query so omitting first/orderBy/block cannot
+// accidentally pass the mock.
 const schema = buildSchema(`
   input Block_height { hash: String! }
   input Receiver_filter { id: ID! }
@@ -47,6 +48,12 @@ const fixture = (accountCount: number, collectedCount: number) => {
     tokens: (10n ** 20n + BigInt(i)).toString(),
   }))
   const read = jest.fn(({ first, where, orderBy, orderDirection, block }, rows) => {
+    // Graph Node only accepts 0 < first <= 1000, despite the wording of its error.
+    if (first < 1 || first > 1000) {
+      throw new Error(
+        `The \`first\` argument must be between 0 and 1000, but is ${first}`,
+      )
+    }
     if (block) {
       expect(block.hash).toBe(blockHash)
     }

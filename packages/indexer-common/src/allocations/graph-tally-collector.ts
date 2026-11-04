@@ -304,7 +304,7 @@ export class GraphTallyCollector {
       },
       {
         onError: (err) =>
-          this.logger.info(`[TAPv2] Failed to query pending RAVs`, { err }),
+          this.logger.error(`[TAPv2] Failed to query pending RAVs`, { err }),
       },
     )
   }
@@ -441,7 +441,7 @@ export class GraphTallyCollector {
       },
       {
         onError: (err) =>
-          this.logger.info(`[TAPv2] Failed to reduce to signed RAVs`, { err }),
+          this.logger.error(`[TAPv2] Failed to reduce to signed RAVs`, { err }),
       },
     )
   }
