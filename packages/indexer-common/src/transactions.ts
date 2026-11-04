@@ -25,6 +25,19 @@ import {
   SubgraphServiceContracts,
 } from '@graphprotocol/toolshed/deployments'
 
+// Lowering the tip lowers maxFeePerGas by the same amount, so the base fee headroom is kept.
+export function capPriorityFee(feeData: FeeData, cap: bigint): FeeData {
+  const { gasPrice, maxFeePerGas, maxPriorityFeePerGas } = feeData
+  if (maxPriorityFeePerGas === null || maxPriorityFeePerGas <= cap) {
+    return feeData
+  }
+  return new FeeData(
+    gasPrice,
+    maxFeePerGas === null ? null : maxFeePerGas - (maxPriorityFeePerGas - cap),
+    cap,
+  )
+}
+
 export class TransactionManager {
   ethereum: Provider
   wallet: HDNodeWallet
