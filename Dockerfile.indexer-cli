@@ -1,11 +1,19 @@
 ########################################################################
-# Build image
+# Base image: Node.js 22 LTS on Debian 13 (trixie), pinned by the
+# multi-arch index digest. Update tag and digest together.
 
-FROM node:20.11-bookworm-slim as build
+ARG NODE_IMAGE=node:22-trixie-slim@sha256:68c76cfad89921b927eae28ba21407475e29d0ce450afcdbe70c1532db042b64
 
-ENV NODE_ENV production
+########################################################################
+# Toolchain for native modules (node-gyp). Only used by build stages.
 
-RUN apt-get update && apt-get install -y python3 build-essential git curl
+FROM ${NODE_IMAGE} AS toolchain
+
+ENV NODE_ENV=production
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 build-essential \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/indexer
 
@@ -14,6 +22,11 @@ COPY package.json .
 COPY yarn.lock .
 COPY tsconfig.json .
 COPY lerna.json .
+
+########################################################################
+# Build image
+
+FROM toolchain AS build
 
 # Copy shared and package files
 COPY packages/indexer-common/ ./packages/indexer-common
@@ -23,25 +36,9 @@ COPY packages/indexer-cli/ ./packages/indexer-cli
 RUN yarn --frozen-lockfile --non-interactive --production=false
 
 ########################################################################
-# Runtime image
+# Production dependencies, installed with the toolchain available
 
-FROM node:20.11-bookworm-slim
-
-ENV NODE_ENV production
-
-RUN apt-get update && apt-get install -y python3 build-essential git curl
-
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
-ENV PATH="/root/.cargo/bin:$PATH"
-
-WORKDIR /opt/indexer
-
-# Copy root files
-COPY package.json .
-COPY yarn.lock .
-COPY tsconfig.json .
-COPY lerna.json .
+FROM toolchain AS deps
 
 # Copy build output
 COPY --from=build /opt/indexer/packages/indexer-common/package.json /opt/indexer/packages/indexer-common/package.json
@@ -50,13 +47,21 @@ COPY --from=build /opt/indexer/packages/indexer-cli/package.json /opt/indexer/pa
 COPY --from=build /opt/indexer/packages/indexer-cli/dist /opt/indexer/packages/indexer-cli/dist
 COPY --from=build /opt/indexer/packages/indexer-cli/bin /opt/indexer/packages/indexer-cli/bin
 
-
 # Install dependencies; exclude dev dependencies
-RUN yarn --frozen-lockfile --non-interactive --production=true
+RUN yarn --frozen-lockfile --non-interactive --production=true \
+  && yarn cache clean
+
+########################################################################
+# Runtime image: no compilers, no Rust, no package manager cache
+
+FROM ${NODE_IMAGE}
+
+ENV NODE_ENV=production
+
+COPY --from=deps /opt/indexer /opt/indexer
 RUN ln -s /opt/indexer/packages/indexer-cli/bin/graph-indexer /usr/bin/graph
 
-
-ENV ETHEREUM ""
+ENV ETHEREUM=""
 
 ENV USER=graph
 ENV UID=10001
