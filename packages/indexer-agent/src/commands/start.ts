@@ -92,6 +92,13 @@ export const start = {
         required: false,
         group: 'Ethereum',
       })
+      .option('max-priority-fee-per-gas', {
+        description:
+          'The maximum priority fee (tip) per gas (gwei) to start transactions with. Resubmissions still raise it by --gas-increase-factor',
+        type: 'number',
+        required: false,
+        group: 'Ethereum',
+      })
       .option('transaction-attempts', {
         description:
           'The maximum number of transaction attempts (Use 0 for unlimited)',
@@ -435,6 +442,7 @@ export async function createNetworkSpecification(
     gasIncreaseFactor: argv.gasIncreaseFactor,
     gasPriceMax: argv.gasPriceMax,
     baseFeePerGasMax: argv.baseFeeGasMax,
+    maxPriorityFeePerGas: argv.maxPriorityFeePerGas,
     maxTransactionAttempts: argv.maxTransactionAttempts,
     confirmationBlocks: argv.confirmationBlocks,
   }

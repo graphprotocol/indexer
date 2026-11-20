@@ -90,6 +90,12 @@ export const TransactionMonitoring = z
       .default(100)
       .transform((x) => x * 10 ** 9)
       .optional(),
+    maxPriorityFeePerGas: z
+      .number()
+      .nonnegative()
+      .finite()
+      .transform((x) => BigInt(Math.round(x * 10 ** 9)))
+      .optional(),
     maxTransactionAttempts: z.number().nonnegative().finite().default(0),
     confirmationBlocks: positiveNumber().default(3),
   })

@@ -34,6 +34,7 @@ import {
   IndexerErrorCode,
   SubgraphClient,
   TransactionManager,
+  capPriorityFee,
   specification as spec,
   GraphNode,
   NetworkMonitor,
@@ -117,6 +118,14 @@ export class Network {
       specification.networkProvider.url,
       specification.networkProvider.pollingInterval,
     )
+
+    // Signers fill in fees from getFeeData, so capping it here covers every transaction.
+    const maxPriorityFeePerGas = specification.transactionMonitoring.maxPriorityFeePerGas
+    if (maxPriorityFeePerGas !== undefined) {
+      const getFeeData = networkProvider.getFeeData.bind(networkProvider)
+      networkProvider.getFeeData = async () =>
+        capPriorityFee(await getFeeData(), maxPriorityFeePerGas)
+    }
 
     // * -----------------------------------------------------------------------
     // * Network Subgraph

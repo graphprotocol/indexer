@@ -85,6 +85,10 @@ Ethereum
   --base-fee-per-gas-max          The maximum base fee per gas (gwei) to use for
                                   transactions, for legacy transactions this
                                   will be treated as the max gas price  [number]
+  --max-priority-fee-per-gas      The maximum priority fee (tip) per gas (gwei)
+                                  to start transactions with. Resubmissions
+                                  still raise it by --gas-increase-factor
+                                                                        [number]
   --transaction-attempts          The maximum number of transaction attempts
                                   (Use 0 for unlimited)    [number] [default: 0]
   --confirmation-blocks           The number of blocks to wait for a transaction
