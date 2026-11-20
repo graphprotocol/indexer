@@ -6,13 +6,15 @@ ARG NODE_IMAGE=node:22-trixie-slim@sha256:68c76cfad89921b927eae28ba21407475e29d0
 
 ########################################################################
 # Toolchain for native modules (node-gyp). Only used by build stages.
+# node-gyp 9 imports distutils, which Python 3.13 dropped; python3-setuptools
+# provides it (needed on arm64, where @parcel/watcher has no prebuilt binary).
 
 FROM ${NODE_IMAGE} AS toolchain
 
 ENV NODE_ENV=production
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 build-essential \
+  && apt-get install -y --no-install-recommends python3 python3-setuptools build-essential \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/indexer
